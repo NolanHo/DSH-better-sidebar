@@ -54,6 +54,7 @@ export const th: Record<string, string> = {
   editorSearchPlaceholder: 'ค้นหาไฟล์ตามชื่อ…',
   editorSearchNoResults: 'ไม่มีไฟล์ที่ตรง',
   editorSearchTruncated: 'ผลลัพธ์มากเกินไป — แสดงเพียงบางส่วน',
+  editorSearchWalkAborted: 'โฟลเดอร์มีขนาดใหญ่เกินไป — การสแกนหยุดก่อนเวลา ผลลัพธ์อาจไม่ครบถ้วน',
   editorEmptyHint: 'เลือกไฟล์จากพาเนลต้นไม้ไฟล์หรือช่องกรอกพาธด้านบนเพื่อเริ่มพรีวิว',
   openFileNewTab: 'เปิดใน Tab ใหม่',
   openFileSide: 'เปิดด้านข้าง',

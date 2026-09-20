@@ -45,6 +45,8 @@
 
 GitView 两处 `isWithinWorkspace` 预判（菜单项隐藏 :578、纵深防御 no-op :601）改为仅在 `workspaceFence !== false` 时限制，组件新增 `store` prop。`fs.search` 不动——它锚定 cwd 向下走，本来就不会越界。
 
+> 实施偏差（后续修正）：`fs.search` 后来增加了含分隔符 query 的精确路径分支（粘贴路径直达），该分支与其它路由一样受围栏约束——围栏开启时 workspace 外路径 403 / 不存在 404，关闭后树外命中以绝对路径返回。无分隔符 query 的遍历分支仍锚定 cwd，行为不变。
+
 ## 实施清单
 
 - 字段三处声明 + 解析：`prefs-shared.ts`（含默认 `true`）/ `config.ts` PrefsSchema / `client/prefs.ts` parsePrefs。

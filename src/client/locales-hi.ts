@@ -54,6 +54,7 @@ export const hi: Record<string, string> = {
   editorSearchPlaceholder: 'फ़ाइल नाम से खोजें…',
   editorSearchNoResults: 'कोई मेल खाती फ़ाइल नहीं',
   editorSearchTruncated: 'परिणाम बहुत अधिक — आंशिक सूची दिखाई जा रही',
+  editorSearchWalkAborted: 'डायरेक्टरी ट्री बहुत बड़ा है — स्कैन जल्दी रुक गया, परिणाम अपूर्ण हो सकते हैं',
   editorEmptyHint: 'पूर्वावलोकन शुरू करने के लिए दाएँ फ़ाइल ट्री या ऊपर पथ इनपुट से फ़ाइल चुनें',
   openFileNewTab: 'नए टैब में खोलें',
   openFileSide: 'बाजू में खोलें',

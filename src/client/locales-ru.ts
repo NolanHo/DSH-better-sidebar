@@ -50,6 +50,7 @@ export const ru: Record<string, string> = {
   editorSearchPlaceholder: 'Поиск по имени файла…',
   editorSearchNoResults: 'Нет совпадающих файлов',
   editorSearchTruncated: 'Слишком много результатов — показана часть совпадений',
+  editorSearchWalkAborted: 'Дерево каталогов слишком велико — обход прерван досрочно, результаты могут быть неполными',
   editorEmptyHint: 'Выберите файл из дерева справа или введите путь выше, чтобы начать предпросмотр',
   openFileNewTab: 'Открыть в новой вкладке',
   openFileSide: 'Открыть сбоку',

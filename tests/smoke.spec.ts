@@ -5,9 +5,9 @@
  */
 import { describe, expect, it, vi } from 'vitest'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve as resolvePath } from 'node:path'
+import { isAbsolute, join, resolve as resolvePath } from 'node:path'
 import { SettingsConflictError, type SettingsNamespace } from '@deepseek-ai/dsh-settings'
 import { apply, mediaTypeForPath, wsCloseReasonOf } from '../src/index.ts'
 import { SidebarError } from '../src/wire.ts'
@@ -718,6 +718,111 @@ describe('session cwd resolution over the API route', () => {
     }
   })
 
+  it('fs.search resolves an absolute query as one exact hit inside the workspace', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-sidebar-search-exact-'))
+    const workspace = join(root, 'workspace')
+    mkdirSync(join(workspace, 'docs'), { recursive: true })
+    writeFileSync(join(workspace, 'docs', 'guide.md'), 'doc')
+    try {
+      const route = mount({ sessions: { get: () => ({ header: { cwd: workspace } }) } })
+      const hit = await invoke(route, 'fs.search', { sessionId: 's', query: join(workspace, 'docs', 'guide.md') })
+      expect(hit).toMatchObject({ ok: true, value: { matches: ['docs/guide.md'], truncated: false } })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('fs.search resolves a separator-containing relative query against the cwd', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-sidebar-search-exact-rel-'))
+    const workspace = join(root, 'workspace')
+    mkdirSync(join(workspace, 'src'), { recursive: true })
+    writeFileSync(join(workspace, 'src', 'util.ts'), 'code')
+    try {
+      const route = mount({ sessions: { get: () => ({ header: { cwd: workspace } }) } })
+      const hit = await invoke(route, 'fs.search', { sessionId: 's', query: 'src/util.ts' })
+      expect(hit).toMatchObject({ ok: true, value: { matches: ['src/util.ts'], truncated: false } })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('fs.search answers not-found for a missing exact path', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-sidebar-search-exact-miss-'))
+    const workspace = join(root, 'workspace')
+    mkdirSync(workspace)
+    try {
+      const route = mount({ sessions: { get: () => ({ header: { cwd: workspace } }) } })
+      const miss = await invoke(route, 'fs.search', { sessionId: 's', query: join(workspace, 'nope.md') })
+      expect(miss).toMatchObject({ ok: false, status: 404, error: { code: 'not-found' } })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('fs.search fences an exact path outside the session workspace', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-sidebar-search-exact-fence-'))
+    const workspace = join(root, 'workspace')
+    const outside = join(root, 'outside')
+    mkdirSync(workspace)
+    mkdirSync(outside)
+    writeFileSync(join(outside, 'secret.txt'), 'secret')
+    try {
+      const route = mount({ sessions: { get: () => ({ header: { cwd: workspace } }) } })
+      const fenced = await invoke(route, 'fs.search', { sessionId: 'security', query: join(outside, 'secret.txt') })
+      expect(fenced).toMatchObject({ ok: false, status: 403, error: { code: 'forbidden' } })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('fs.search keeps separator-free queries on the name-substring walk', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-sidebar-search-walk-'))
+    const workspace = join(root, 'workspace')
+    mkdirSync(join(workspace, 'src'), { recursive: true })
+    writeFileSync(join(workspace, 'src', 'util.ts'), 'code')
+    writeFileSync(join(workspace, 'util.ts'), 'code')
+    try {
+      const route = mount({ sessions: { get: () => ({ header: { cwd: workspace } }) } })
+      const walk = await invoke(route, 'fs.search', { sessionId: 's', query: 'util' })
+      expect(walk).toMatchObject({ ok: true, value: { matches: ['src/util.ts', 'util.ts'], truncated: false } })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('fs.search answers not-found for an exact path THROUGH a file (ENOTDIR)', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-sidebar-search-enotdir-'))
+    const workspace = join(root, 'workspace')
+    mkdirSync(join(workspace, 'docs'), { recursive: true })
+    writeFileSync(join(workspace, 'docs', 'guide.md'), 'doc')
+    try {
+      const route = mount({ sessions: { get: () => ({ header: { cwd: workspace } }) } })
+      const through = await invoke(route, 'fs.search', { sessionId: 's', query: join(workspace, 'docs', 'guide.md', 'child') })
+      expect(through).toMatchObject({ ok: false, status: 404, error: { code: 'not-found' } })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it.skipIf(!canCreateSymlink)('fs.search relativizes an exact hit against the canonical cwd behind a symlink', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-sidebar-search-symcwd-'))
+    const real = join(root, 'real')
+    mkdirSync(join(real, 'docs'), { recursive: true })
+    writeFileSync(join(real, 'docs', 'guide.md'), 'doc')
+    // The session cwd is a SYMLINK to the real workspace: a logical-cwd
+    // relative() would see escape markers and degrade the hit to an
+    // absolute path; the canonical base must keep it relative.
+    const linked = join(root, 'link')
+    symlinkSync(real, linked)
+    try {
+      const route = mount({ sessions: { get: () => ({ header: { cwd: linked } }) } })
+      const hit = await invoke(route, 'fs.search', { sessionId: 's', query: join(linked, 'docs', 'guide.md') })
+      expect(hit).toMatchObject({ ok: true, value: { matches: ['docs/guide.md'], truncated: false } })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   it('rejects fs.write paths outside the session workspace', async () => {
     const root = mkdtempSync(join(tmpdir(), 'dsh-sidebar-fs-security-'))
     const workspace = join(root, 'workspace')
@@ -1041,12 +1146,25 @@ describe('side card settings routes', () => {
       // Default (fence on): the outside read is refused as usual…
       const refused = await invoke(route, 'fs.read', { sessionId: 'fence', cwd: workspace, path: join(outside, 'secret.txt') })
       expect(refused).toMatchObject({ ok: false, error: { code: 'forbidden' } })
+      // …and the exact-path search branch is fenced identically…
+      const searchRefused = await invoke(route, 'fs.search', { sessionId: 'fence', cwd: workspace, query: join(outside, 'secret.txt') })
+      expect(searchRefused).toMatchObject({ ok: false, error: { code: 'forbidden' } })
       // …then the settings-page switch (or the fence notice's one-click off)
       // disarms every fs route for paths outside the workspace.
       const off = await invoke(route, 'settings.update', { patch: { workspaceFence: false } })
       expect(off.ok).toBe(true)
       const read = await invoke(route, 'fs.read', { sessionId: 'fence', cwd: workspace, path: join(outside, 'secret.txt') })
       expect(read).toMatchObject({ ok: true, value: { kind: 'text', content: 'global instructions' } })
+      // …the disarm also lets the exact-path search reach the outside file,
+      // reported as an ABSOLUTE match (outside the tree there is no
+      // cwd-relative spelling the client could resolve).
+      const search = await invoke(route, 'fs.search', { sessionId: 'fence', cwd: workspace, query: join(outside, 'secret.txt') })
+      expect(search).toMatchObject({ ok: true, value: { truncated: false } })
+      const searchMatches = ((search as { value?: { matches: string[] } }).value ?? { matches: [] }).matches
+      expect(searchMatches.length).toBe(1)
+      const outsideHit = searchMatches[0]!
+      expect(isAbsolute(outsideHit)).toBe(true)
+      expect(realpathSync(outsideHit)).toBe(realpathSync(join(outside, 'secret.txt')))
       const tree = await invoke(route, 'fs.tree', { sessionId: 'fence', cwd: workspace, path: outside })
       expect(tree).toMatchObject({ ok: true })
       const write = await invoke(route, 'fs.write', { sessionId: 'fence', cwd: workspace, path: join(outside, 'written.txt'), content: 'ok' })

@@ -40,6 +40,7 @@ export const de: Record<string, string> = {
   editorSearchPlaceholder: 'Nach Dateiname suchen…',
   editorSearchNoResults: 'Keine passenden Dateien',
   editorSearchTruncated: 'Zu viele Ergebnisse – nur ein Teil wird angezeigt',
+  editorSearchWalkAborted: 'Der Verzeichnisbaum ist zu groß — der Durchlauf wurde vorzeitig beendet, Ergebnisse können unvollständig sein',
   editorEmptyHint: 'Wählen Sie eine Datei aus dem Dateibaum rechts oder dem Pfadeingabefeld oben, um mit der Vorschau zu beginnen',
   openFileNewTab: 'In neuem Tab öffnen',
   openFileSide: 'Seitlich öffnen',

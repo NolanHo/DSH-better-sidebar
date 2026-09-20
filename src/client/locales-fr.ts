@@ -47,6 +47,7 @@ export const fr: Record<string, string> = {
   editorSearchPlaceholder: 'Rechercher par nom de fichier…',
   editorSearchNoResults: 'Aucun fichier correspondant',
   editorSearchTruncated: 'Trop de résultats, seule une partie des correspondances est affichée',
+  editorSearchWalkAborted: "L'arborescence est trop grande — le parcours s'est arrêté tôt, les résultats peuvent être incomplets",
   editorEmptyHint: 'Choisissez un fichier dans l’arborescence à droite ou dans le champ de chemin ci-dessus pour commencer l’aperçu',
   openFileNewTab: 'Ouvrir dans un nouvel onglet',
   openFileSide: 'Ouvrir de côté',

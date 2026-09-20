@@ -563,7 +563,7 @@ const { value } = await res.json()   // 错误时 { ok: false, error: { code, me
 | `pty.close` / `agent-pty.close` | 释放终端（外部 tab 一般用不到） |
 | `settings.get` / `settings.update` | 侧边栏偏好读写（revision 守卫） |
 
-> **文件路径安全边界**：`fs.tree`、`fs.read`、`fs.write`、`/sidebar/file`、`/sidebar/html` 和 `/sidebar/upload` 都以请求对应 session 的权威 `cwd` 作为 workspace 根目录。路径会按真实文件系统路径检查，越界绝对路径、`..` 解析结果和指向 workspace 外部的符号链接都会被拒绝；消费插件不应把 `cwd` 当作可由用户扩大权限范围的参数。
+> **文件路径安全边界**：`fs.tree`、`fs.read`、`fs.write`、`fs.search`（含分隔符的 query 走精确路径分支）、`/sidebar/file`、`/sidebar/html` 和 `/sidebar/upload` 都以请求对应 session 的权威 `cwd` 作为 workspace 根目录。路径会按真实文件系统路径检查，越界绝对路径、`..` 解析结果和指向 workspace 外部的符号链接都会被拒绝；消费插件不应把 `cwd` 当作可由用户扩大权限范围的参数。`fs.search` 先回答存在性再检查包含：workspace 外的**不存在**路径返回 `not-found`（404）而非 `forbidden`。
 
 媒体/下载字节走 `/sidebar/file` 路由（`?sessionId=&path=&cwd=&download=1`）：
 
@@ -856,6 +856,8 @@ ctx.effect(() =>
 ### 8.1 内置键 `workspaceFence`（工作区路径围栏）
 
 所有侧栏文件系统路由（`fs.tree` / `fs.read` / `fs.write` / `/sidebar/file` 媒体 / `/sidebar/html` 预览 / `/sidebar/upload`）默认强制**工作区包含检查**：客户端提供的路径经 realpath 解析后必须落在会话工作区内，否则 403（wire 错误码 `forbidden`，消息 `path "..." is outside workspace`）。`workspaceFence: false`（默认 `true`）解除该包含检查——路径仍会解析符号链接得到 canonical 路径，但不再拒绝工作区外的目标（如全局 `~/.dsh/AGENTS.md`、会话 cwd 之外的 linked worktree）。
+
+`fs.search` 的两个分支对围栏的依赖不同：无分隔符的 query 走 cwd 锚定的递归遍历，天然不出工作区；**含分隔符的 query（粘贴的路径）走精确查找分支**，与其它路由一样受围栏约束——围栏开启时 workspace 外的既有路径 403、不存在的路径 404（先答存在性），关闭后树外命中以绝对路径返回。
 
 - 开关位置：设置页「文件」卡片 →「功能设置」二级弹窗；编辑器加载失败与文件树列目录失败两个错误面在触发围栏拒绝时会显示原因 + 一键全局关闭按钮（`FenceErrorNotice`，写 `workspaceFence: false` 后自动重试失败的操作）。
 - ⚠️ **安全代价**：关闭期间，页面内任意同源脚本（**包括第三方消费插件**）都能通过上述路由读写主机上任意文件——开关文案已明示该风险，用完建议重新打开。

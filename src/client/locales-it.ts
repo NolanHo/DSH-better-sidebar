@@ -45,6 +45,7 @@ export const it: Record<string, string> = {
   editorSearchPlaceholder: 'Cerca file per nome…',
   editorSearchNoResults: 'Nessun file corrispondente',
   editorSearchTruncated: 'Troppi risultati — viene mostrato un elenco parziale',
+  editorSearchWalkAborted: "L'albero di directory è troppo grande — la scansione si è interrotta presto, i risultati possono essere incompleti",
   editorEmptyHint: 'Scelga un file dal pannello dell’albero a destra o dal campo del percorso in alto per iniziare l’anteprima',
   openFileNewTab: 'Apri in una nuova scheda',
   openFileSide: 'Apri a lato',

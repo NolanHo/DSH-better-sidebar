@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest'
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { searchFiles } from '../src/fs-search.ts'
+import { displayPathFromRoot, searchFiles } from '../src/fs-search.ts'
 
 /**
  * Symlink creation needs extra privileges on Windows; the symlink case skips
@@ -140,21 +140,25 @@ describe('fs-search', () => {
       }
       const result = await searchFiles(dir, 'match', { maxMatches: 2 })
       expect(result.truncated).toBe(true)
+      // A match-cap cut has SEEN every match it dropped: no walkAborted.
+      expect(result.walkAborted).toBeUndefined()
       expect(result.matches.length).toBe(2)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
   })
 
-  it('stops with truncated: true when the visited budget is exceeded', async () => {
+  it('stops with truncated+walkAborted when the visited budget is exceeded', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'dsh-sidebar-search-visited-'))
     try {
       for (let index = 0; index < 5; index += 1) {
         writeFileSync(join(dir, `file-${index}.txt`), 'x')
       }
-      // The walk visits more entries than the budget allows and gives up.
+      // The walk visits more entries than the budget allows and gives up;
+      // matches beyond the cut point were never seen (walkAborted).
       const result = await searchFiles(dir, 'nomatch', { maxVisited: 3 })
       expect(result.truncated).toBe(true)
+      expect(result.walkAborted).toBe(true)
       expect(result.matches).toEqual([])
     } finally {
       rmSync(dir, { recursive: true, force: true })
@@ -169,5 +173,14 @@ describe('fs-search', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
+  })
+
+  it('displayPathFromRoot keeps in-tree hits relative and out-of-tree hits absolute', () => {
+    const root = process.platform === 'win32' ? 'C:\\work\\proj' : '/work/proj'
+    const sep = process.platform === 'win32' ? '\\' : '/'
+    expect(displayPathFromRoot(root, `${root}${sep}docs${sep}guide.md`)).toBe('docs/guide.md')
+    expect(displayPathFromRoot(root, root)).toBe('.')
+    const outside = process.platform === 'win32' ? 'C:\\elsewhere\\file.txt' : '/elsewhere/file.txt'
+    expect(displayPathFromRoot(root, outside)).toBe(outside)
   })
 })

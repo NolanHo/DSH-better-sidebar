@@ -37,6 +37,7 @@ export const pt: Record<string, string> = {
   editorSearchPlaceholder: 'Pesquisar arquivos por nome…',
   editorSearchNoResults: 'Nenhum arquivo correspondente',
   editorSearchTruncated: 'Resultados demais — exibindo lista parcial',
+  editorSearchWalkAborted: 'A árvore de diretórios é grande demais — a varredura parou cedo, os resultados podem estar incompletos',
   editorEmptyHint: 'Escolha um arquivo na árvore do painel ou no campo de caminho acima para começar a pré-visualizar',
   openFileNewTab: 'Abrir em nova aba',
   openFileSide: 'Abrir ao lado',

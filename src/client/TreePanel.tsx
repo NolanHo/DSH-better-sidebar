@@ -76,7 +76,7 @@ export function TreePanel(props: {
 }) {
   const { sessionId, cwd, store, expanded, revealed, onToggle, onOpenFile, onOpenFileNewTab, onOpenFileSide, openWithTargets, openWithPinned, openWithSsh, onOpenWith, onToggleOpenWithPin, onReferenceFile, onPathRenamed, onPathDeleted, full, service } = props
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState<{ matches: string[]; truncated: boolean } | null>(null)
+  const [results, setResults] = useState<{ matches: string[]; truncated: boolean; walkAborted?: boolean } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [refreshTick, setRefreshTick] = useState(0)
 
@@ -285,7 +285,9 @@ export function TreePanel(props: {
             </button>
           ))}
           {error === null && results?.truncated === true && (
-            <div className={css.editorSearchHint}>{t('editorSearchTruncated')}</div>
+            <div className={css.editorSearchHint}>
+              {results.walkAborted === true ? t('editorSearchWalkAborted') : t('editorSearchTruncated')}
+            </div>
           )}
         </div>
       )}

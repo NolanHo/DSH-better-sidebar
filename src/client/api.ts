@@ -271,9 +271,12 @@ export const api = {
   fsTree: (scope: SessionScope, path: string, signal?: AbortSignal) =>
     call<{ path: string; entries: FsEntry[]; truncated: boolean }>('fs.tree', scopePayload(scope, { path }), signal),
   /** Global recursive file-name search rooted at the session cwd (the editor
-   *  side panel's search box); matches are cwd-relative '/'-separated paths. */
+   *  side panel's search box); matches are cwd-relative '/'-separated paths,
+   *  or a single exact-path hit when the query contains a path separator.
+   *  `walkAborted` marks a visited-budget cut (results may be incomplete),
+   *  distinct from the match-cap `truncated`. */
   fsSearch: (scope: SessionScope, query: string, signal?: AbortSignal) =>
-    call<{ matches: string[]; truncated: boolean }>('fs.search', scopePayload(scope, { query }), signal),
+    call<{ matches: string[]; truncated: boolean; walkAborted?: boolean }>('fs.search', scopePayload(scope, { query }), signal),
   fsRead: (scope: SessionScope, path: string, signal?: AbortSignal) =>
     call<FsTextResult | FsBinaryResult>('fs.read', scopePayload(scope, { path }), signal),
   fsWrite: (scope: SessionScope, path: string, content: string) =>

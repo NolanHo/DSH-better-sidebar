@@ -43,6 +43,42 @@ export async function ensureWorkspacePath(cwd: string, target: string, fence = t
 }
 
 /**
+ * Resolve an existing workspace path like {@link ensureWorkspacePath}, but
+ * report a MISSING target as `not-found` (404) instead of a generic fs
+ * error — the exact-path lookup behind the sidebar search answers "does
+ * this path exist", so a missing path is the expected negative answer,
+ * not a resolution failure. Existence is answered before containment:
+ * a missing path outside the workspace is `not-found`, not `forbidden`.
+ *
+ * @param cwd - Session workspace directory.
+ * @param target - Absolute path in the session's namespace (callers join
+ * relative spellings onto the cwd first).
+ * @param fence - Whether containment is enforced (the settings-page
+ * `workspaceFence` switch); an existing target outside the workspace is
+ * `forbidden`.
+ * @returns The canonical absolute paths of the target AND the workspace
+ * root — the caller needs the canonical cwd to relativize the hit without
+ * a second realpath round-trip (a logical-cwd base would misjudge targets
+ * behind a symlinked cwd and degrade in-tree hits to absolute paths).
+ */
+export async function ensureExistingWorkspacePath(cwd: string, target: string, fence = true): Promise<{ realCwd: string; realTarget: string }> {
+  const absolute = requireAbsolute(resolveSessionPath(cwd, target))
+  let realTarget: string
+  try {
+    realTarget = await realpath(absolute)
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') {
+      throw new SidebarError('not-found', `path "${target}" does not exist`, 404)
+    }
+    throw new SidebarError('fs-error', `cannot resolve target "${target}": ${error instanceof Error ? error.message : String(error)}`, 400)
+  }
+  const realCwd = await resolveRealPath(cwd, 'workspace')
+  if (fence) assertWithinWorkspace(realCwd, realTarget)
+  return { realCwd, realTarget }
+}
+
+/**
  * Validate a write destination, including destinations that do not exist yet.
  * Existing targets are resolved to catch symlinks; missing targets are checked
  * against the nearest existing ancestor before the caller creates or renames.

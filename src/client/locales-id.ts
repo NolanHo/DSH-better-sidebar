@@ -52,6 +52,7 @@ export const id: Record<string, string> = {
   editorSearchPlaceholder: 'Cari berkas berdasarkan nama…',
   editorSearchNoResults: 'Tidak ada berkas yang cocok',
   editorSearchTruncated: 'Terlalu banyak hasil — menampilkan daftar parsial',
+  editorSearchWalkAborted: 'Pohon direktori terlalu besar — pemindaian dihentikan lebih awal, hasil mungkin tidak lengkap',
   editorEmptyHint: 'Pilih berkas dari panel pohon atau input path di atas untuk mulai pratinjau',
   openFileNewTab: 'Buka di Tab Baru',
   openFileSide: 'Buka di Samping',
