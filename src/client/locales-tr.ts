@@ -55,6 +55,7 @@ export const tr: Record<string, string> = {
   editorSearchNoResults: 'Eşleşen dosya yok',
   editorSearchTruncated: 'Sonuç çok fazla — kısmi liste gösteriliyor',
   editorSearchWalkAborted: 'Dizin ağacı çok büyük — tarama erken durduruldu, sonuçlar eksik olabilir',
+  fileMissing: 'Bu dosya artık mevcut değil — silinmiş veya çalışma alanının dışına taşınmış olabilir',
   editorEmptyHint: 'Önizlemeye başlamak için sağdaki dosya ağacından veya yukarıdaki yol girişinden bir dosya seçin',
   openFileNewTab: 'Yeni sekmede aç',
   openFileSide: 'Yana aç',

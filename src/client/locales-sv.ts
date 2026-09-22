@@ -38,6 +38,7 @@ export const sv: Record<string, string> = {
   editorSearchNoResults: 'Inga matchande filer',
   editorSearchTruncated: 'För många resultat — visar en delvis lista',
   editorSearchWalkAborted: 'Katalogträdet är för stort — genomsökningen avbröts tidigt, resultatet kan vara ofullständigt',
+  fileMissing: 'Filen finns inte längre — den kan ha tagits bort eller flyttats utanför arbetsytan',
   editorEmptyHint: 'Välj en fil från trädpanelen eller sökvägsinmatningen ovan för att börja förhandsgranska',
   openFileNewTab: 'Öppna i ny flik',
   openFileSide: 'Öppna vid sidan',

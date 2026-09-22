@@ -53,6 +53,7 @@ export const nl: Record<string, string> = {
   editorSearchNoResults: 'Geen overeenkomende bestanden',
   editorSearchTruncated: 'Te veel resultaten — een gedeeltelijke lijst wordt getoond',
   editorSearchWalkAborted: 'De directoryboom is te groot — de scan is vroegtijdig gestopt, resultaten kunnen onvolledig zijn',
+  fileMissing: 'Dit bestand bestaat niet meer — het is mogelijk verwijderd of buiten de werkruimte verplaatst',
   editorEmptyHint: 'Kies een bestand uit het boompaneel of het pad-invoerveld hierboven om te beginnen met previewen',
   openFileNewTab: 'Openen in nieuw tabblad',
   openFileSide: 'Openen aan de zijkant',

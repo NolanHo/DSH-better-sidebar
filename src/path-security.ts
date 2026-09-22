@@ -14,6 +14,26 @@ async function resolveRealPath(path: string, label: string): Promise<string> {
   }
 }
 
+/**
+ * Resolve one path that must already exist, answering a MISSING target with
+ * the `not-found` (404) vocabulary instead of a generic fs error: a deleted,
+ * renamed, or moved file is the expected negative answer to "open this path",
+ * and clients branch on the code to retire the stale reference (an editor tab
+ * kept in persisted layout, a produced-file card). Every other resolution
+ * failure stays `fs-error` (400).
+ */
+async function resolveExistingRealPath(path: string, label: string): Promise<string> {
+  try {
+    return await realpath(path)
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') {
+      throw new SidebarError('not-found', `path "${path}" does not exist`, 404)
+    }
+    throw new SidebarError('fs-error', `cannot resolve ${label} "${path}": ${error instanceof Error ? error.message : String(error)}`, 400)
+  }
+}
+
 /** Reject a resolved path whose real filesystem target escapes the workspace. */
 function assertWithinWorkspace(workspace: string, target: string): void {
   if (!isWithin(workspace, target)) {
@@ -23,7 +43,8 @@ function assertWithinWorkspace(workspace: string, target: string): void {
 
 /**
  * Resolve an existing workspace path through symlinks and (unless disarmed)
- * enforce containment.
+ * enforce containment. A target that does not exist is `not-found` (404);
+ * resolution failures other than a missing path stay `fs-error` (400).
  *
  * @param cwd - Session workspace directory.
  * @param target - Client-supplied absolute path in the session's namespace.
@@ -36,7 +57,7 @@ export async function ensureWorkspacePath(cwd: string, target: string, fence = t
   const absolute = requireAbsolute(resolveSessionPath(cwd, target))
   const [realCwd, realTarget] = await Promise.all([
     resolveRealPath(cwd, 'workspace'),
-    resolveRealPath(absolute, 'target'),
+    resolveExistingRealPath(absolute, 'target'),
   ])
   if (fence) assertWithinWorkspace(realCwd, realTarget)
   return realTarget
@@ -63,16 +84,7 @@ export async function ensureWorkspacePath(cwd: string, target: string, fence = t
  */
 export async function ensureExistingWorkspacePath(cwd: string, target: string, fence = true): Promise<{ realCwd: string; realTarget: string }> {
   const absolute = requireAbsolute(resolveSessionPath(cwd, target))
-  let realTarget: string
-  try {
-    realTarget = await realpath(absolute)
-  } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code
-    if (code === 'ENOENT' || code === 'ENOTDIR') {
-      throw new SidebarError('not-found', `path "${target}" does not exist`, 404)
-    }
-    throw new SidebarError('fs-error', `cannot resolve target "${target}": ${error instanceof Error ? error.message : String(error)}`, 400)
-  }
+  const realTarget = await resolveExistingRealPath(absolute, 'target')
   const realCwd = await resolveRealPath(cwd, 'workspace')
   if (fence) assertWithinWorkspace(realCwd, realTarget)
   return { realCwd, realTarget }

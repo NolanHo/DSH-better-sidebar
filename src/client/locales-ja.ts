@@ -55,6 +55,7 @@ export const ja: Record<string, string> = {
   editorSearchNoResults: '一致するファイルはありません',
   editorSearchTruncated: '結果が多すぎます — 一部のみ表示',
   editorSearchWalkAborted: 'ディレクトリツリーが大きすぎるため走査を途中で打ち切りました。結果が不完全な場合があります',
+  fileMissing: 'ファイルは既に存在しません — 削除されたか、ワークスペース外へ移動された可能性があります',
   editorEmptyHint: '右のファイルツリーまたは上のパス入力欄からファイルを選んでプレビュー',
   openFileNewTab: '新しいタブで開く',
   openFileSide: '横に開く',

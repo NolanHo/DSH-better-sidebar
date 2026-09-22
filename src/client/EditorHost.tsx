@@ -27,7 +27,7 @@ import { createElement } from 'react'
 import clsx from 'clsx'
 import { IconCheckOutline16, IconFolderOpen16, IconRefreshOutline14 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { Context } from '../context-types.ts'
-import { api, isOutsideWorkspaceMessage, mediaUrl, type SessionScope } from './api.ts'
+import { api, isMissingFileError, isOutsideWorkspaceMessage, mediaUrl, type SessionScope } from './api.ts'
 import { BinaryDownload } from './binary-download.tsx'
 import { FenceErrorNotice } from './FenceErrorNotice.tsx'
 import { planFirstMatch, planFsReadOutcome, type EditorLoadAction } from './editor-load.ts'
@@ -47,6 +47,8 @@ import css from './sidebar.module.css'
 
 type EditorLoad =
   | { status: 'loading' }
+  /** The path no longer resolves (deleted or moved outside the workspace). */
+  | { status: 'missing' }
   | { status: 'error'; message: string }
   | { status: 'ready'; viewer: FileViewerDescriptor; content?: string; truncated?: boolean; mediaUrl?: string; customData?: unknown }
   | { status: 'binary' }
@@ -341,7 +343,12 @@ export function EditorHost(props: {
             apply(outcome)
           }).catch((error: unknown) => {
             if (cancelled) return
-            setLoad({ status: 'error', message: error instanceof Error ? error.message : String(error) })
+            // A file removed outside the sidebar (a cleared worktree, an
+            // external delete) leaves its persisted tab behind; the missing
+            // state retires it instead of printing a resolution failure.
+            setLoad(isMissingFileError(error)
+              ? { status: 'missing' }
+              : { status: 'error', message: error instanceof Error ? error.message : String(error) })
           })
           return
       }
@@ -479,6 +486,14 @@ export function EditorHost(props: {
         <div className={css.editorMain}>
           {showEmpty && <div className={css.editorPlaceholder}>{t('editorEmptyHint')}</div>}
           {!showEmpty && load.status === 'loading' && <div className={css.editorPlaceholder}>{t('loading')}</div>}
+          {!showEmpty && load.status === 'missing' && (
+            <div className={css.editorPlaceholder}>
+              <span>{t('fileMissing')}</span>
+              <button type="button" className={css.iconButton} onClick={() => { closePathTabs(ctx, store, path) }}>
+                {t('close')}
+              </button>
+            </div>
+          )}
           {!showEmpty && load.status === 'error' && (isOutsideWorkspaceMessage(load.message)
             ? <FenceErrorNotice store={store} onDisabled={() => { setReloadSeq(sequence => sequence + 1) }} />
             : <div className={css.editorError}>{load.message}</div>)}

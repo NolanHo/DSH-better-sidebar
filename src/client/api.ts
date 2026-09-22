@@ -38,6 +38,19 @@ export function isOutsideWorkspaceMessage(message: string): boolean {
   return message.includes('outside workspace')
 }
 
+/**
+ * Whether a wire failure says the target path no longer exists. The host
+ * answers a missing read target with code `not-found`; a page whose bundle
+ * predates a host restart still sees the earlier `fs-error` form whose message
+ * carries the ENOENT text, so both identify the same condition. Callers use
+ * this to retire the stale reference (an editor tab kept in persisted layout,
+ * a produced-file card) instead of printing a resolution failure.
+ */
+export function isMissingFileError(error: unknown): boolean {
+  if (!(error instanceof SidebarApiError)) return false
+  return error.code === 'not-found' || error.message.includes('ENOENT') || error.message.includes('does not exist')
+}
+
 /** Explorer row (host fs-tree shape). */
 export interface FsEntry {
   name: string

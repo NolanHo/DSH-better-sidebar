@@ -57,6 +57,7 @@ export const pl: Record<string, string> = {
   editorSearchNoResults: 'Brak pasujących plików',
   editorSearchTruncated: 'Zbyt wiele wyników — pokazuję częściową listę',
   editorSearchWalkAborted: 'Drzewo katalogów jest zbyt duże — przeszukiwanie zakończono przedwcześnie, wyniki mogą być niekompletne',
+  fileMissing: 'Ten plik już nie istnieje — mógł zostać usunięty lub przeniesiony poza obszar roboczy',
   editorEmptyHint: 'Wybierz plik z panelu drzewa lub pola ścieżki powyżej, aby rozpocząć podgląd',
   openFileNewTab: 'Otwórz w nowej karcie',
   openFileSide: 'Otwórz z boku',

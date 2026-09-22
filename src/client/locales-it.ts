@@ -46,6 +46,7 @@ export const it: Record<string, string> = {
   editorSearchNoResults: 'Nessun file corrispondente',
   editorSearchTruncated: 'Troppi risultati — viene mostrato un elenco parziale',
   editorSearchWalkAborted: "L'albero di directory è troppo grande — la scansione si è interrotta presto, i risultati possono essere incompleti",
+  fileMissing: "Questo file non esiste più — potrebbe essere stato eliminato o spostato fuori dall'area di lavoro",
   editorEmptyHint: 'Scelga un file dal pannello dell’albero a destra o dal campo del percorso in alto per iniziare l’anteprima',
   openFileNewTab: 'Apri in una nuova scheda',
   openFileSide: 'Apri a lato',

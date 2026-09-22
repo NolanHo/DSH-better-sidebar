@@ -868,14 +868,18 @@ describe('session cwd resolution over the API route', () => {
     }
   })
 
-  it('keeps fs.tree missing-path failures as fs errors', async () => {
+  it('reports fs.tree missing paths as not-found', async () => {
     const root = mkdtempSync(join(tmpdir(), 'dsh-sidebar-fs-security-'))
     const workspace = join(root, 'workspace')
     mkdirSync(workspace)
     try {
       const route = mount({ sessions: { get: () => ({ header: { cwd: workspace } }) } })
       const tree = await invoke(route, 'fs.tree', { sessionId: 'security', path: join(workspace, 'missing') })
-      expect(tree).toMatchObject({ ok: false, status: 400, error: { code: 'fs-error' } })
+      // A path that no longer resolves is the expected negative answer to an
+      // open, not a resolution failure: the client branches on the code to
+      // retire the stale reference (a removed worktree leaves editor tabs and
+      // produced-file cards behind).
+      expect(tree).toMatchObject({ ok: false, status: 404, error: { code: 'not-found' } })
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

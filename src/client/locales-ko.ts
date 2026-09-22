@@ -47,6 +47,7 @@ export const ko: Record<string, string> = {
   editorSearchNoResults: '일치하는 파일 없음',
   editorSearchTruncated: '결과가 너무 많아 일부 일치 항목만 표시합니다',
   editorSearchWalkAborted: '디렉터리 트리가 너무 커서 탐색을 조기 중단했습니다. 결과가 불완전할 수 있습니다',
+  fileMissing: '파일이 더 이상 존재하지 않습니다 — 삭제되었거나 워크스페이스 밖으로 이동되었을 수 있습니다',
   editorEmptyHint: '오른쪽 파일 트리나 위쪽 경로 입력란에서 파일을 선택해 미리보기를 시작하세요',
   openFileNewTab: '새 Tab으로 열기',
   openFileSide: '측면에 열기',

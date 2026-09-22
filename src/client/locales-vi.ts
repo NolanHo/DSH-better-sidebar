@@ -55,6 +55,7 @@ export const vi: Record<string, string> = {
   editorSearchNoResults: 'Không có tệp phù hợp',
   editorSearchTruncated: 'Quá nhiều kết quả, chỉ hiển thị một phần',
   editorSearchWalkAborted: 'Cây thư mục quá lớn — quét đã dừng sớm, kết quả có thể không đầy đủ',
+  fileMissing: 'Tệp này không còn tồn tại — có thể đã bị xóa hoặc di chuyển ra ngoài không gian làm việc',
   editorEmptyHint: 'Chọn tệp từ cây tệp bên phải hoặc ô nhập đường dẫn phía trên để xem trước',
   openFileNewTab: 'Mở trong Tab mới',
   openFileSide: 'Mở ở bên cạnh',

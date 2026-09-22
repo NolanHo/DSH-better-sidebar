@@ -56,6 +56,7 @@ export const ar: Record<string, string> = {
   editorSearchNoResults: 'لا ملفات مطابقة',
   editorSearchTruncated: 'نتائج كثيرة جداً — عرض قائمة جزئية',
   editorSearchWalkAborted: 'شجرة المجلدات كبيرة جدًا — تم إيقاف الفحص مبكرًا، وقد تكون النتائج غير مكتملة',
+  fileMissing: 'لم يعد هذا الملف موجودًا — ربما حُذف أو نُقل خارج مساحة العمل',
   editorEmptyHint: 'اختر ملفاً من لوحة الشجرة أو من حقل المسار بالأعلى لبدء المعاينة',
   openFileNewTab: 'فتح في تبويب جديد',
   openFileSide: 'فتح إلى الجانب',

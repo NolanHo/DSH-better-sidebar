@@ -9,7 +9,7 @@
  * only, no editor chrome); file tabs keep the full chrome in both modes.
  */
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createElement, useEffect, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react-dom/test-utils'
@@ -329,6 +329,85 @@ describe('EditorHost (files window)', () => {
       expect(html).not.toContain('Pick a file from the tree panel')
       expect(html).not.toContain('File path (relative')
     } finally {
+      unmount()
+    }
+  })
+
+  it('a file removed outside the sidebar reads as missing instead of erroring', async () => {
+    const { store, ctx } = setup()
+    // A viewer whose fetch strategy is fsRead: the load path the missing-file
+    // state hangs off (without a match the tab degrades to the binary card).
+    ctx.betterSidebar!.registerFileViewer({ id: 'text', exts: ['ts'], fetchStrategy: 'fsRead', component: () => null })
+    ctx.betterSidebar!.openFile({ sessionId: 'editor-home-session', cwd: '/tmp' }, '/tmp/gone.ts')
+    const goneTab = (): SidebarTab =>
+      allLeaves(store.getSnapshot().state!.bottomSplits).flatMap(leaf => leaf.tabs)
+        .find(tab => tab.path === '/tmp/gone.ts')!
+    // The host maps a missing read target to the not-found code.
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(
+      { ok: false, error: { code: 'not-found', message: 'path "/tmp/gone.ts" does not exist' } },
+      { status: 404 },
+    )))
+    const { container, unmount } = mountHost(ctx, store, goneTab)
+    try {
+      await vi.waitFor(() => { expect(container.innerHTML).toContain('no longer exists') })
+      expect(container.innerHTML).not.toContain('cannot resolve')
+      // The placeholder retires the stale tab.
+      const close = [...container.querySelectorAll('button')].find(button => button.textContent === 'Close')
+      expect(close).toBeDefined()
+      act(() => { close!.click() })
+      expect(allLeaves(store.getSnapshot().state!.bottomSplits).flatMap(leaf => leaf.tabs)
+        .some(tab => tab.path === '/tmp/gone.ts')).toBe(false)
+    } finally {
+      vi.unstubAllGlobals()
+      unmount()
+    }
+  })
+
+  it('a host that predates the not-found code (fs-error + ENOENT) reads as missing too', async () => {
+    const { store, ctx } = setup()
+    // A viewer whose fetch strategy is fsRead: the load path the missing-file
+    // state hangs off (without a match the tab degrades to the binary card).
+    ctx.betterSidebar!.registerFileViewer({ id: 'text', exts: ['ts'], fetchStrategy: 'fsRead', component: () => null })
+    ctx.betterSidebar!.openFile({ sessionId: 'editor-home-session', cwd: '/tmp' }, '/tmp/gone.ts')
+    const goneTab = (): SidebarTab =>
+      allLeaves(store.getSnapshot().state!.bottomSplits).flatMap(leaf => leaf.tabs)
+        .find(tab => tab.path === '/tmp/gone.ts')!
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(
+      {
+        ok: false,
+        error: {
+          code: 'fs-error',
+          message: 'cannot resolve target "/tmp/gone.ts": ENOENT: no such file or directory, realpath \'/tmp/gone.ts\'',
+        },
+      },
+      { status: 400 },
+    )))
+    const { container, unmount } = mountHost(ctx, store, goneTab)
+    try {
+      await vi.waitFor(() => { expect(container.innerHTML).toContain('no longer exists') })
+      expect(container.innerHTML).not.toContain('cannot resolve')
+    } finally {
+      vi.unstubAllGlobals()
+      unmount()
+    }
+  })
+
+  it('a transport failure stays a reported error rather than a missing file', async () => {
+    const { store, ctx } = setup()
+    // A viewer whose fetch strategy is fsRead: the load path the missing-file
+    // state hangs off (without a match the tab degrades to the binary card).
+    ctx.betterSidebar!.registerFileViewer({ id: 'text', exts: ['ts'], fetchStrategy: 'fsRead', component: () => null })
+    ctx.betterSidebar!.openFile({ sessionId: 'editor-home-session', cwd: '/tmp' }, '/tmp/gone.ts')
+    const goneTab = (): SidebarTab =>
+      allLeaves(store.getSnapshot().state!.bottomSplits).flatMap(leaf => leaf.tabs)
+        .find(tab => tab.path === '/tmp/gone.ts')!
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+    const { container, unmount } = mountHost(ctx, store, goneTab)
+    try {
+      await vi.waitFor(() => { expect(container.innerHTML).toContain('offline') })
+      expect(container.innerHTML).not.toContain('no longer exists')
+    } finally {
+      vi.unstubAllGlobals()
       unmount()
     }
   })

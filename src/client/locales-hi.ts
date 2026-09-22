@@ -55,6 +55,7 @@ export const hi: Record<string, string> = {
   editorSearchNoResults: 'कोई मेल खाती फ़ाइल नहीं',
   editorSearchTruncated: 'परिणाम बहुत अधिक — आंशिक सूची दिखाई जा रही',
   editorSearchWalkAborted: 'डायरेक्टरी ट्री बहुत बड़ा है — स्कैन जल्दी रुक गया, परिणाम अपूर्ण हो सकते हैं',
+  fileMissing: 'यह फ़ाइल अब मौजूद नहीं है — हो सकता है यह हटा दी गई हो या कार्यक्षेत्र से बाहर चली गई हो',
   editorEmptyHint: 'पूर्वावलोकन शुरू करने के लिए दाएँ फ़ाइल ट्री या ऊपर पथ इनपुट से फ़ाइल चुनें',
   openFileNewTab: 'नए टैब में खोलें',
   openFileSide: 'बाजू में खोलें',
