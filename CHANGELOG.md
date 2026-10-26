@@ -2,6 +2,12 @@
 
 > 本文档收录 dsh-better-sidebar 的完整发布历史（最新版摘要见 [README](README_ZH.md)；同步发布于 [GitHub Releases](https://github.com/omdsh-dev/DSH-better-sidebar/releases)）。
 
+### 未发布
+
+- ⚡ **大 Markdown 的 Mermaid 预览不再卡死渲染器（chunk 内测量隔离到沙箱 iframe）**：Mermaid 用 `SVGElement.getBBox()` 量文字，测量节点挂在 `document.body` 上 → 每次测量都刷新整个 DSH 文档布局。真机实测一次 `getBBox` **59–75 ms**（15,418 节点），空 iframe 里只要 **1 ms**；31 张图因此阻塞主线程 >20 s，触发桌面壳看门狗杀渲染器，恢复标签页后循环卡死。现在图表改在隐藏的 `sandbox="allow-scripts"` iframe（blob: 自包含 mermaid UMD + 协议）里渲染，父侧只做 postMessage 收发与 SVG 清洗：**单图 1,500–7,300 ms → 30–104 ms，31 图约 5 s 内完成**，客户端 mermaid chunk 同时从 **7.04 MB → 3.69 MB**。另加共享渲染队列（可见/近视口优先，其余 `requestIdleCallback` 逐张补齐，两次之间让出 16 ms 主线程；**所有图最终都会渲染成图，不再退化为代码块**）与按围栏行数预留高度的占位骨架。设计与实测见 [docs/plans/2026-10-23-mermaid-iframe-isolation.md](docs/plans/2026-10-23-mermaid-iframe-isolation.md)。
+- ⚡ **大文档滚动流畅性：渲染让位于滚动、隐藏页签不空转、摘掉全量 DOM 扫描**：图表渲染队列在滚动期间暂停（停止滚动 350 ms 后恢复），并且只服务当前可见的预览——隐藏页签里的图表保持占位、切回时才渲染；`Markdown` 变更触发的两次全量扫描（内联 HTML pass、标题锚点 pass）由「每次 mutation 跑一遍」（实测 8–15 ms/次）改为 80 ms 合并一次；打开文档时的近视口判断改为先批量读 rect、再统一写入，去掉每张图一次强制布局；`.mermaidWrap` 增加 `content-visibility: auto` + `contain-intrinsic-size` + `contain: layout paint style`，视口外的图表不再参与布局与绘制。滚动时不再有后台渲染、全量扫描与视口外 SVG 重绘抢主线程；图表仍会在滚动停止后或进入视口时补齐，不退化为代码块。
+- 🐞 **图表渲染失败时直接显示 mermaid 的解析错误**：之前只显示通用「Mermaid 渲染失败」+ 源码块（完整错误只在 hover title 里）。现在错误条下方直接给出 mermaid 报错的首两行（如 `Parse error on line 10 ... Expecting 'SEMI', ... got 'UNICODE_TEXT'`），配合下方源码可快速定位坏围栏；错误信息仍完整保留在 title 中。
+
 ### v0.29.0
 
 - **侧边对话接入 GenUI**：通过现有 `ctx.betterSidebar` 服务新增可选的 `registerSidechatSurfaceAdapter`，支持 GenUI 0.15.0 渲染已结算的助手回复；未注册消费方时保持原 Markdown。
@@ -15,6 +21,7 @@
   - 代价：会话 attach 之前，侧边栏根是原始项目目录而非 agent 最后所在的子目录 / worktree；attach 后下一次 5 s 轮询切回。
   - 📏 **实测（40,157,518 字节会话，本机重建）**：12 个 `session.cwd` + 36 个绕过入口调用并发 → **1 次 header 读、0 次整读、3 ms、RSS +0.3 MB**；同产物用修复前代码（`43db17f`）跑 6 个绕过入口并发 → 6 次整读、峰值 RSS +1002 MB（外推 36 次 ≈ 6.0 GB，与事故 6.2 GB 峰值吻合）。单次整读成本 467 ms / +501.6 MB。方法与边界见[记录](docs/plans/2026-10-27-workspace-cwd-over-cold-reads.md) §5.2。
   - 🧪 测试：`tests/smoke.spec.ts` 重写该组 8 例（header 优先于陈旧提示、header 只读一次、12 并发共享一次 header 读、无 `stat`/`stat` 失败回落客户端提示、live committed 优先、相对 cwd 拒绝为 `bad-request`、`defaultDirectory` 与进程 cwd 兜底）。机制与取舍见 [记录](docs/plans/2026-10-27-workspace-cwd-over-cold-reads.md)。
+
 
 ### v0.28.1
 
@@ -51,9 +58,6 @@
 - **任务页拖拽改为每帧一次更新**：图模式背景平移、后台任务浮窗标题拖动、锚定弹层拖动不再按鼠标事件频率重绘（高回报率鼠标下此前每个 pointermove 都提交整块画布）；松手同步落位，点击判定与最终位置不变。实测同一帧内 100 次移动的画布提交由 98 次降到 1 次。
 - **已结束分支整体聚合**：只有整条分支全部结束才自动聚合；仍有运行后代、当前查看路径或未知子代理目录的分支保持可见，聚合计数覆盖隐藏的 Agent 后代。
 - **四项独立自动规则**：复用设置齿轮与现有偏好存储，分别控制已结束叶子聚合、已结束分支聚合、同一父级至少 3 个空闲队友聚合（workflow 内沿用原规则，也受空闲开关控制），以及 Agent 总数至少 8 个时后台任务抽屉自动收起，默认全部开启。未手动操作时设置即时生效；手动展开或收起始终优先。
-- ⚡ **大 Markdown 的 Mermaid 预览不再卡死渲染器（chunk 内测量隔离到沙箱 iframe）**：Mermaid 用 `SVGElement.getBBox()` 量文字，测量节点挂在 `document.body` 上 → 每次测量都刷新整个 DSH 文档布局。真机实测一次 `getBBox` **59–75 ms**（15,418 节点），空 iframe 里只要 **1 ms**；31 张图因此阻塞主线程 >20 s，触发桌面壳看门狗杀渲染器，恢复标签页后循环卡死。现在图表改在隐藏的 `sandbox="allow-scripts"` iframe（blob: 自包含 mermaid UMD + 协议）里渲染，父侧只做 postMessage 收发与 SVG 清洗：**单图 1,500–7,300 ms → 30–104 ms，31 图约 5 s 内完成**，客户端 mermaid chunk 同时从 **7.04 MB → 3.69 MB**。另加共享渲染队列（可见/近视口优先，其余 `requestIdleCallback` 逐张补齐，两次之间让出 16 ms 主线程；**所有图最终都会渲染成图，不再退化为代码块**）与按围栏行数预留高度的占位骨架。设计与实测见 [docs/plans/2026-10-23-mermaid-iframe-isolation.md](docs/plans/2026-10-23-mermaid-iframe-isolation.md)。
-- ⚡ **大文档滚动流畅性：渲染让位于滚动、隐藏页签不空转、摘掉全量 DOM 扫描**：图表渲染队列在滚动期间暂停（停止滚动 350 ms 后恢复），并且只服务当前可见的预览——隐藏页签里的图表保持占位、切回时才渲染；`Markdown` 变更触发的两次全量扫描（内联 HTML pass、标题锚点 pass）由「每次 mutation 跑一遍」（实测 8–15 ms/次）改为 80 ms 合并一次；打开文档时的近视口判断改为先批量读 rect、再统一写入，去掉每张图一次强制布局；`.mermaidWrap` 增加 `content-visibility: auto` + `contain-intrinsic-size` + `contain: layout paint style`，视口外的图表不再参与布局与绘制。滚动时不再有后台渲染、全量扫描与视口外 SVG 重绘抢主线程；图表仍会在滚动停止后或进入视口时补齐，不退化为代码块。
-- 🐞 **图表渲染失败时直接显示 mermaid 的解析错误**：之前只显示通用「Mermaid 渲染失败」+ 源码块（完整错误只在 hover title 里）。现在错误条下方直接给出 mermaid 报错的首两行（如 `Parse error on line 10 ... Expecting 'SEMI', ... got 'UNICODE_TEXT'`），配合下方源码可快速定位坏围栏；错误信息仍完整保留在 title 中。
 
 ### v0.28.0
 

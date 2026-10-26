@@ -128,6 +128,26 @@ tsdown 之前生成；git 源安装走 `prepare`，因此同样可用。
   视口内/近视口的图优先渲染（初始优先级来自 3.4 的批量 rect 读取）。
 - 其余图不阻塞阅读：滚动时暂停，停止滚动后按空闲槽补齐；隐藏页签不参与。
 
+### 3.6 错误分类与边界校验（review 修复）
+
+- **错误分两类**：iframe 脚本对 mermaid 语法错误的正常回包（`mermaid-error`）映射为
+  `MermaidDiagramError`——只让该图显示错误首两行 + 源码，**不再重试、不置 frame 熔断**；
+  装载失败/握手超时/渲染超时/通道异常才是 `MermaidFrameError`，允许重建一次，第二次
+  才置页级熔断（后续图快速失败）。一张坏图不会影响它后面的正确图。
+- **父侧校验**：`acceptFrameMessage(event, frame.contentWindow)` 要求
+  `event.source === frame.contentWindow` 且 origin 属于不透明来源白名单（`'null'` / 空），
+  再校验 `id`（正整数）/`svg`/`message` 的 schema；不匹配的消息直接丢弃。
+- **frame 侧校验**：内联脚本只接受 `event.source === window.parent` 的 `mermaid-render`，
+  且校验 `id` 为有限数字、`code` 为字符串且不超过 500k 字符、`theme` 走 `dark`/`default`
+  白名单，然后才调用 mermaid。
+- **可见性恢复补刷**：80 ms 合并的 inline-HTML pass 在页面 hidden 时记 dirty，恢复可见
+  时重放；预览队列的可见性 handle 同时受 `document.visibilityState` 与
+  `IntersectionObserver` 控制（恢复可见即 `wake()`）。
+- **测试**：`tests/mermaid-frame.spec.ts` 覆盖「单图语法错误不影响后续图」「frame 故障
+  单次重试」「两次 frame 故障才熔断」以及消息校验（错误 source/origin、畸形 payload）；
+  `tests/mermaid-frame-asset.spec.ts` 钉住 frame 侧的 sender/payload 校验标记；其余真机
+  iframe 行为由挂载 lane 覆盖。
+
 ## 4. 实测结果（同机、同文档、31 图）
 
 | 指标 | 修复前 | 修复后 |
