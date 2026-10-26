@@ -237,6 +237,18 @@ function MarkdownSegment({ text, hasMermaid, media, codeLabels }: MarkdownSegmen
     if (container === null) return
     runInlineHtmlPass(container, media)
     let timer: number | undefined
+    /** A pass was skipped because the page was hidden; flush it on return. */
+    let dirty = false
+    const runPass = (): void => {
+      // Only `hidden` pauses the pass; jsdom reports a non-visible state too,
+      // and the initial pass already ran there.
+      if (document.visibilityState === 'hidden') {
+        dirty = true
+        return
+      }
+      dirty = false
+      runInlineHtmlPass(container, media)
+    }
     const observer = new MutationObserver(() => {
       if (timer !== undefined) return
       // Coalesce a burst of mutations (shiki settling, diagram swaps, inline
@@ -245,13 +257,22 @@ function MarkdownSegment({ text, hasMermaid, media, codeLabels }: MarkdownSegmen
       // stream of full-document scans.
       timer = window.setTimeout(() => {
         timer = undefined
-        if (document.visibilityState !== 'visible') return
-        runInlineHtmlPass(container, media)
+        runPass()
       }, 80)
     })
+    const onVisibilityChange = (): void => {
+      if (document.visibilityState === 'hidden' || !dirty) return
+      if (timer !== undefined) {
+        window.clearTimeout(timer)
+        timer = undefined
+      }
+      runPass()
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
     observer.observe(container, { childList: true, subtree: true })
     return () => {
       observer.disconnect()
+      document.removeEventListener('visibilitychange', onVisibilityChange)
       if (timer !== undefined) window.clearTimeout(timer)
     }
   }, [text, media])

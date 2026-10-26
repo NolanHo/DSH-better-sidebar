@@ -563,25 +563,38 @@ export function MermaidMarkdown({ text, codeLabels }: MermaidMarkdownProps): Rea
   const handle = handleRef.current
 
   // Background renders wait while this preview is off screen (parked tab,
-  // collapsed dock); showing it again wakes the shared queue. jsdom has no
-  // IntersectionObserver, so specs keep the default (visible) gate.
+  // collapsed dock, hidden page); showing it again wakes the shared queue.
+  // jsdom has neither layout nor IntersectionObserver, so specs keep the
+  // default (visible) gate with only the document-visibility guard.
   useEffect(() => {
     const container = containerRef.current
-    if (container === null || typeof IntersectionObserver === 'undefined') {
-      return () => { dropPreviewTasks(handle) }
-    }
+    if (container === null) return () => { dropPreviewTasks(handle) }
     const update = (visible: boolean): void => {
       if (handle.visible === visible) return
       handle.visible = visible
       if (visible) handle.wake()
     }
-    update(container.getClientRects().length > 0)
+    const present = (): boolean =>
+      document.visibilityState !== 'hidden' && container.getClientRects().length > 0
+    const onVisibilityChange = (): void => {
+      if (typeof IntersectionObserver === 'undefined') update(document.visibilityState !== 'hidden')
+      else update(present())
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    if (typeof IntersectionObserver === 'undefined') {
+      return () => {
+        document.removeEventListener('visibilitychange', onVisibilityChange)
+        dropPreviewTasks(handle)
+      }
+    }
+    update(present())
     const observer = new IntersectionObserver((entries) => {
-      for (const entry of entries) update(entry.isIntersecting)
+      for (const entry of entries) update(entry.isIntersecting && document.visibilityState !== 'hidden')
     })
     observer.observe(container)
     return () => {
       observer.disconnect()
+      document.removeEventListener('visibilitychange', onVisibilityChange)
       dropPreviewTasks(handle)
     }
   }, [handle])

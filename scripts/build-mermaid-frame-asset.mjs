@@ -58,6 +58,7 @@ const mermaidSource = readFileSync(mermaidBundlePath(), 'utf8')
 const FRAME_API = `(function () {
   'use strict';
   var seq = 0;
+  var MAX_SOURCE = 500000;
   function configure(theme) {
     window.mermaid.initialize({
       startOnLoad: false,
@@ -77,9 +78,17 @@ const FRAME_API = `(function () {
   window.__dshMermaidFrame = { render: render };
   if (window.parent !== window) {
     window.addEventListener('message', function (event) {
+      // The parent is the only legitimate sender; the opaque-origin sandbox
+      // cannot compare origins, so identity plus a strict payload schema is
+      // the boundary (the host document must never be able to drive this
+      // renderer with arbitrary content).
+      if (event.source !== window.parent) return;
       var data = event.data;
       if (!data || typeof data !== 'object' || data.type !== 'mermaid-render') return;
-      render(String(data.code == null ? '' : data.code), data.theme).then(function (svg) {
+      if (typeof data.id !== 'number' || !isFinite(data.id)) return;
+      if (typeof data.code !== 'string' || data.code.length > MAX_SOURCE) return;
+      var theme = data.theme === 'dark' ? 'dark' : 'default';
+      render(data.code, theme).then(function (svg) {
         window.parent.postMessage({ type: 'mermaid-result', id: data.id, svg: svg }, '*');
       }).catch(function (error) {
         window.parent.postMessage({ type: 'mermaid-error', id: data.id, message: String((error && error.message) || error) }, '*');

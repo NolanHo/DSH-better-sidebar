@@ -26,4 +26,14 @@ describe('mermaid frame asset', () => {
     expect(MERMAID_FRAME_HTML).toContain('htmlLabels: false')
     expect(MERMAID_FRAME_HTML).toContain('suppressErrorRendering: true')
   })
+
+  it('validates the sender and the payload on the frame side', () => {
+    // The opaque-origin sandbox cannot compare origins, so the frame binds
+    // requests to its parent window and validates every field it consumes.
+    expect(MERMAID_FRAME_HTML).toContain('event.source !== window.parent')
+    expect(MERMAID_FRAME_HTML).toContain("typeof data.id !== 'number'")
+    expect(MERMAID_FRAME_HTML).toContain("typeof data.code !== 'string'")
+    expect(MERMAID_FRAME_HTML).toContain('data.code.length > MAX_SOURCE')
+    expect(MERMAID_FRAME_HTML).toContain("data.theme === 'dark' ? 'dark' : 'default'")
+  })
 })

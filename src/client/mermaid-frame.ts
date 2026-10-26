@@ -15,6 +15,12 @@
  * `allow-same-origin`: it runs only our own rendering code, cannot touch the
  * GUI document, and needs no host route. It is created lazily on the first
  * diagram and reused for every following render on the page.
+ *
+ * Two failure classes stay separate on purpose: a diagram that mermaid itself
+ * rejects is a per-diagram error (source + message on that block only), while a
+ * frame that never loads, times out or answers with garbage is a transport
+ * error (one retry, then a fast-fail breaker for the rest of the page). A bad
+ * fence must never poison the diagrams after it.
  */
 import { MERMAID_FRAME_HTML } from './mermaid-frame-asset.generated.ts'
 
@@ -25,12 +31,44 @@ const FRAME_WIDTH = 1200
 const FRAME_HEIGHT = 900
 const FRAME_READY_TIMEOUT_MS = 10_000
 const FRAME_RENDER_TIMEOUT_MS = 30_000
+/** Guard against a hostile/broken payload being posted to the frame. */
+const MAX_DIAGRAM_SOURCE_LENGTH = 500_000
+
+/** mermaid rejected this diagram (syntax/unsupported feature). Only this
+ * diagram falls back to its source; the frame stays healthy. */
+export class MermaidDiagramError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'MermaidDiagramError'
+  }
+}
+
+/** The frame itself failed (load/handshake/timeout/protocol). Retry once, then
+ * fail fast for the remaining diagrams on the page. */
+export class MermaidFrameError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options)
+    this.name = 'MermaidFrameError'
+  }
+}
 
 /** One pending render waiting on the frame's postMessage answer. */
 interface PendingRender {
   resolve: (svg: string) => void
   reject: (error: Error) => void
   timer: number
+}
+
+/** A validated answer from the frame. */
+export type FrameMessage =
+  | { kind: 'result'; id: number; svg: string }
+  | { kind: 'error'; id: number; message: string }
+
+/** The subset of MessageEvent the protocol needs (easy to unit-test). */
+export interface MessageEventLike {
+  source: unknown
+  origin: string
+  data: unknown
 }
 
 const pending = new Map<number, PendingRender>()
@@ -51,26 +89,78 @@ export function setMermaidFrameRendererForTests(
   testRenderer = renderer
 }
 
+/** Test seam for the frame layer itself: replaces the postMessage transport
+ * while keeping `renderMermaidDiagram`'s error classification/retry/breaker. */
+let testTransport: ((code: string, theme: MermaidTheme) => Promise<string>) | null = null
+export function setMermaidFrameTransportForTests(
+  transport: ((code: string, theme: MermaidTheme) => Promise<string>) | null,
+): void {
+  testTransport = transport
+  frameUnavailable = false
+}
+
+/** Restore the real frame and clear the breaker (module state persists across
+ * specs in one vitest file). */
+export function resetMermaidFrameForTests(): void {
+  testRenderer = null
+  testTransport = null
+  frameUnavailable = false
+}
+
+/**
+ * Validate one message against the frame protocol.
+ *
+ * The sandboxed frame has an opaque origin (`'null'`), so the source window is
+ * the primary identity check; the origin allowlist keeps a same-origin page
+ * that happens to reuse the message shape from being accepted.
+ * @param event - the incoming message event (or a test double of it).
+ * @param expectedWindow - the frame's `contentWindow`; `null` rejects all.
+ * @returns the validated message, or `null` when it must be ignored.
+ */
+export function acceptFrameMessage(event: MessageEventLike, expectedWindow: Window | null): FrameMessage | null {
+  if (expectedWindow === null || event.source !== expectedWindow) return null
+  if (event.origin !== 'null' && event.origin !== '') return null
+  const data = event.data as { type?: unknown; id?: unknown; svg?: unknown; message?: unknown } | null
+  if (data === null || typeof data !== 'object') return null
+  if (data.type !== 'mermaid-result' && data.type !== 'mermaid-error') return null
+  if (typeof data.id !== 'number' || !Number.isInteger(data.id) || data.id <= 0) return null
+  if (data.type === 'mermaid-result') {
+    return typeof data.svg === 'string' ? { kind: 'result', id: data.id, svg: data.svg } : null
+  }
+  return typeof data.message === 'string'
+    ? { kind: 'error', id: data.id, message: data.message }
+    : null
+}
+
 /** Route the frame's result/error messages to their pending render. */
 function installMessageListener(): void {
   if (messageListenerInstalled) return
   messageListenerInstalled = true
   window.addEventListener('message', (event: MessageEvent) => {
-    const data = event.data as { type?: unknown; id?: unknown; svg?: unknown; message?: unknown } | null
-    if (data === null || typeof data !== 'object') return
-    if (data.type !== 'mermaid-result' && data.type !== 'mermaid-error') return
-    const id = typeof data.id === 'number' ? data.id : -1
-    const entry = pending.get(id)
+    const message = acceptFrameMessage(event, frame?.contentWindow ?? null)
+    if (message === null) return
+    const entry = pending.get(message.id)
     if (entry === undefined) return
+    pending.delete(message.id)
+    window.clearTimeout(entry.timer)
+    if (message.kind === 'result') entry.resolve(message.svg)
+    else entry.reject(new MermaidDiagramError(message.message))
+  })
+}
+
+/** Reject every in-flight render (frame replaced/disposed) instead of leaving
+ * them to their timeouts. */
+function failPending(error: Error): void {
+  for (const [id, entry] of pending) {
     pending.delete(id)
     window.clearTimeout(entry.timer)
-    if (data.type === 'mermaid-result' && typeof data.svg === 'string') entry.resolve(data.svg)
-    else entry.reject(new Error(typeof data.message === 'string' ? data.message : 'mermaid frame render failed'))
-  })
+    entry.reject(error)
+  }
 }
 
 /** Drop the current frame (failed load, page teardown) and its blob URL. */
 function disposeFrame(): void {
+  failPending(new MermaidFrameError('mermaid frame was reset'))
   frameReady = null
   if (frame !== null) {
     frame.remove()
@@ -109,11 +199,12 @@ function ensureFrame(): Promise<void> {
     }
     const onReady = (event: MessageEvent): void => {
       if (event.source !== iframe.contentWindow) return
+      if (event.origin !== 'null' && event.origin !== '') return
       const data = event.data as { type?: unknown } | null
       if (data !== null && typeof data === 'object' && data.type === 'mermaid-frame-ready') settle()
     }
     const timer = window.setTimeout(() => {
-      settle(new Error('mermaid frame did not become ready'))
+      settle(new MermaidFrameError('mermaid frame did not become ready'))
     }, FRAME_READY_TIMEOUT_MS)
     window.addEventListener('message', onReady)
     frameObjectUrl = URL.createObjectURL(new Blob([MERMAID_FRAME_HTML], { type: 'text/html' }))
@@ -128,12 +219,12 @@ function ensureFrame(): Promise<void> {
 async function renderInFrame(code: string, theme: MermaidTheme): Promise<string> {
   await ensureFrame()
   const target = frame?.contentWindow
-  if (target === null || target === undefined) throw new Error('mermaid frame disappeared')
+  if (target === null || target === undefined) throw new MermaidFrameError('mermaid frame disappeared')
   const id = ++requestSeq
   return new Promise<string>((resolve, reject) => {
     const timer = window.setTimeout(() => {
       pending.delete(id)
-      reject(new Error('mermaid frame render timed out'))
+      reject(new MermaidFrameError('mermaid frame render timed out'))
     }, FRAME_RENDER_TIMEOUT_MS)
     pending.set(id, { resolve, reject, timer })
     target.postMessage({ type: 'mermaid-render', id, code, theme }, '*')
@@ -142,25 +233,36 @@ async function renderInFrame(code: string, theme: MermaidTheme): Promise<string>
 
 /**
  * Render one mermaid diagram off the host document's layout.
+ *
+ * A `MermaidDiagramError` is final for that one diagram (no retry, no breaker);
+ * a transport failure gets one retry with a fresh frame, then flips the
+ * page-level breaker so later diagrams fail fast instead of paying a timeout
+ * each.
  * @param code - the diagram source (one fenced block body).
  * @param theme - mermaid theme to render with (follows the color scheme).
  * @returns the raw SVG markup (sanitized by the caller before injection).
  */
 export async function renderMermaidDiagram(code: string, theme: MermaidTheme): Promise<string> {
   if (testRenderer !== null) return testRenderer(code, theme)
-  if (frameUnavailable) throw new Error('mermaid rendering frame is unavailable')
+  if (code.length > MAX_DIAGRAM_SOURCE_LENGTH) {
+    throw new MermaidDiagramError(`diagram source is too large (${code.length} chars)`)
+  }
+  if (frameUnavailable) throw new MermaidFrameError('mermaid rendering frame is unavailable')
+  const renderOnce = async (): Promise<string> => (
+    testTransport !== null ? testTransport(code, theme) : renderInFrame(code, theme)
+  )
   try {
-    return await renderInFrame(code, theme)
-  } catch (_firstError) {
-    // One retry with a fresh frame covers a transient load failure; a second
-    // failure marks the frame unusable so later diagrams fail fast (the
-    // diagram body then shows the error + source instead of a placeholder).
+    return await renderOnce()
+  } catch (firstError) {
+    // A bad diagram is not a broken frame: report it and leave the frame alone.
+    if (firstError instanceof MermaidDiagramError) throw firstError
     disposeFrame()
     try {
-      return await renderInFrame(code, theme)
+      return await renderOnce()
     } catch (secondError) {
+      if (secondError instanceof MermaidDiagramError) throw secondError
       frameUnavailable = true
-      throw new Error(
+      throw new MermaidFrameError(
         `mermaid frame unavailable: ${secondError instanceof Error ? secondError.message : String(secondError)}`,
         { cause: secondError },
       )
