@@ -519,7 +519,7 @@ async function resolveActiveWorktreeRoot(ctx: Context, sessionId: string, base: 
     return base
   }
   const canonicalTop = requireAbsolute(top)
-  const effectiveBase = pathUnderOf(base, canonicalTop) ? base : canonicalTop
+  const effectiveBase = pathUnderOf(canonicalTop, base) ? base : canonicalTop
   const active = await activeRootFromEvents(await sessionEventsOf(ctx, sessionId), effectiveBase)
   const root = active ?? effectiveBase
   cachePut(activeWorktreeRootCache, sessionId, { root, base, directoryEpoch, eventSeq, gitResolved: true, expires: Date.now() + ACTIVE_ROOT_TTL_MS }, ACTIVE_ROOT_CACHE_MAX)

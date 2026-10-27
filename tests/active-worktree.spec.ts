@@ -162,6 +162,23 @@ describe('active worktree root', () => {
     }
   })
 
+  it('keeps a session cwd that is a SUBDIRECTORY of the repository', async () => {
+    // A workspace registered at `<repo>/workspace` (a plain subdirectory, not a
+    // linked worktree) must stay the root: replacing it with the repository
+    // toplevel makes every relative path resolve one level too high.
+    const root = mkdtempSync(join(tmpdir(), 'dsh-active-root-'))
+    const repo = join(root, 'repo')
+    const subdir = join(repo, 'workspace')
+    try {
+      initRepo(repo, 'a.txt')
+      mkdirSync(subdir)
+      const ctx = sessionCtx(subdir, [])
+      await expect(activeWorktreeRootOf(ctx, 's-subdir', subdir)).resolves.toBe(realpathSync.native(subdir))
+    } finally {
+      removeTree(root)
+    }
+  })
+
   it('probes the REAL path, never its case-folded identity (Linux is case-sensitive)', async () => {
     // `addActivePath` keys candidates by a lowercased identity; probing that
     // KEY instead of the path silently drops every candidate whose path has an
