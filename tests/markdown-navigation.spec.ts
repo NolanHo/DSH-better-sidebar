@@ -253,6 +253,41 @@ describe('rewriteLocalMarkdownLinks', () => {
     expect(rewriteLocalMarkdownLinks('[x](./b.md#u) ~~~ tail', DOC, CWD)).toBe('[x](./b.md%23u) ~~~ tail')
   })
 
+  it('rewrites angle-delimited inline destinations without treating brackets as URL content (#1015)', () => {
+    const cases: [string, string][] = [
+      ['[t](<../../../docs/notes/a.md>)', '[t](<../../../docs/notes/a.md>)'],
+      ['[t](<F:/repo/docs/notes/a.md>)', '[t](<F:/repo/docs/notes/a.md>)'],
+      ['[t](<C:\\ws\\_a\\r.md>)', '[t](<C:/ws/_a/r.md>)'],
+      ['[t](<./a.markdown#标题> "title")', '[t](<./a.markdown%23标题> "title")'],
+      ['[t](<./a.md#L24>)', '[t](<./a.md#L24>)'],
+      ['[t](<./a.md%23标题>)', '[t](<./a.md%23标题>)'],
+      ['[t](<./notes.txt>)', '[t](<./notes.txt?>)'],
+      ['[t](<https://e.com/a.md#top>)', '[t](<https://e.com/a.md#top>)'],
+      ['[t](<//e.com/a.md>)', '[t](<//e.com/a.md>)'],
+      // Destinations with spaces still fall through to the renderer.
+      ['[t](<../../../docs/case with spaces.md>)', '[t](<../../../docs/case with spaces.md>)'],
+      ['![alt](<./pic.png>)', '![alt](<./pic.png>)'],
+      ['`[t](<./a.md#标题>)`', '`[t](<./a.md#标题>)`'],
+    ]
+    for (const [source, expected] of cases) {
+      const rewritten = rewriteLocalMarkdownLinks(source, DOC, CWD)
+      expect(rewritten, source).toBe(expected)
+      expect(rewriteLocalMarkdownLinks(rewritten, DOC, CWD), source).toBe(expected)
+    }
+  })
+
+  it('keeps bare parent-relative markdown destinations claimed with a Windows document base (#1015)', () => {
+    const destination = '../../../docs/notes/a.md'
+    const docPath = 'F:\\repo\\src\\deep\\nested\\README.md'
+    const cwd = 'F:\\repo'
+    const source = `[t](${destination})`
+    expect(rewriteLocalMarkdownLinks(source, DOC, CWD)).toBe(source)
+    expect(rewriteLocalMarkdownLinks(source, docPath, cwd)).toBe(source)
+    expect(fileTarget(destination, { docPath, cwd })).toEqual({
+      path: 'F:\\repo\\docs\\notes\\a.md', fragment: '',
+    })
+  })
+
   it('rewrites reference definitions, brackets included', () => {
     expect(rewriteLocalMarkdownLinks('[id]: ./other.md#标题', DOC, CWD)).toBe('[id]: ./other.md%23标题')
     expect(rewriteLocalMarkdownLinks('[id]: <./a b.md#标题>', DOC, CWD)).toBe('[id]: <./a b.md%23标题>')
