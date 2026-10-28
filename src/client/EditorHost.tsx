@@ -113,6 +113,14 @@ function accepted(pending: Promise<unknown>): Promise<boolean> {
   )
 }
 
+/** Ask before a reload/switch drops a draft. A host without confirm blocks
+ *  the action: refusing is recoverable, while silently discarding is not.
+ *  (The tab-close guard intentionally proceeds instead — an unclosable tab
+ *  is worse than one skipped prompt.) */
+function confirmDiscard(message: string): boolean {
+  return typeof window.confirm === 'function' ? window.confirm(message) : false
+}
+
 export function EditorHost(props: {
   ctx: Context
   store: SidebarStore
@@ -162,12 +170,7 @@ export function EditorHost(props: {
   // Manual refresh (issue #167 + PR #228): a dirty draft is dropped by the
   // reload (the editor instance remounts), so confirm before discarding it.
   const refreshFile = (): void => {
-    if (toolbar?.dirty === true) {
-      const confirmed = typeof window.confirm === 'function'
-        ? window.confirm(t('refreshUnsavedConfirm'))
-        : false
-      if (!confirmed) return
-    }
+    if (toolbar?.dirty === true && !confirmDiscard(t('refreshUnsavedConfirm'))) return
     setReloadSeq(sequence => sequence + 1)
   }
 
@@ -235,14 +238,11 @@ export function EditorHost(props: {
       // keeps its draft, so there is nothing to confirm.
       if (openClaimedNativeFile(ctx, scope.sessionId, scope.cwd, absolute)) return
       // An in-place switch remounts the viewer, and the draft lives only in
-      // that instance — ask before dropping it, the same guard the tab close
-      // uses. Re-opening the current path is not a switch.
-      if (absolute !== path && isEditorDirty(tab.id, scope.sessionId)) {
-        const confirmed = typeof window.confirm === 'function'
-          ? window.confirm(t('closeUnsavedConfirm'))
-          : false
-        if (!confirmed) return
-      }
+      // that instance — ask before dropping it, reading the same dirty
+      // registry the tab close uses. Re-opening the current path is not a
+      // switch.
+      if (absolute !== path && isEditorDirty(tab.id, scope.sessionId)
+        && !confirmDiscard(t('closeUnsavedConfirm'))) return
       ctx.get('betterSidebar')?.updateTab(tab.id, { path: absolute, title: baseName(absolute) }, scope.sessionId)
     } else {
       openSidebarFile(ctx, scope.sessionId, absolute, { cwd: scope.cwd })
