@@ -408,6 +408,51 @@ describe('EditorHost (files window)', () => {
     }
   })
 
+  it('in-place mode: switching files confirms before dropping an unsaved draft', () => {
+    const { store, ctx } = setup()
+    const service = ctx.betterSidebar
+    // A viewer holding a draft: its toolbar report feeds the host's dirty
+    // registry, which is what the switch guard reads.
+    const DirtyViewer = (viewerProps: FileViewerProps): ReactNode => {
+      useEffect(() => {
+        viewerProps.onToolbarState?.({ modes: true, mode: 'edit', dirty: true, editable: true, saveState: 'idle' })
+        // Mount-only: this instance's draft is the report above.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [])
+      return null
+    }
+    service.registerFileViewer({
+      id: 'test:dirty',
+      exts: ['fake'],
+      fetchStrategy: 'none',
+      component: DirtyViewer,
+    })
+    const tabId = 'editor:/tmp/a.fake'
+    service.openTab({ type: 'editor', title: 'a.fake', path: '/tmp/a.fake', id: tabId })
+    const fileTab = (): SidebarTab =>
+      allLeaves(store.getSnapshot().state!.bottomSplits).flatMap(leaf => leaf.tabs)
+        .find(tab => tab.id === tabId)!
+    store.setPrefs({ ...store.getPrefs(), editorExplorer: true })
+    const { container, unmount } = mountHost(ctx, store, fileTab)
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    try {
+      const input = container.querySelector('input')!
+      typeAndCommit(input, '/tmp/b.fake')
+      // Cancelled: the tab keeps its file (and the mounted draft).
+      expect(confirm).toHaveBeenCalledTimes(1)
+      expect(fileTab().path).toBe('/tmp/a.fake')
+      // Confirmed: the same gesture switches in place.
+      confirm.mockReturnValue(true)
+      typeAndCommit(input, '/tmp/b.fake')
+      expect(confirm).toHaveBeenCalledTimes(2)
+      expect(fileTab().path).toBe('/tmp/b.fake')
+      expect(fileTab().title).toBe('b.fake')
+    } finally {
+      confirm.mockRestore()
+      unmount()
+    }
+  })
+
   it('in-place mode: a file another native type claims opens THAT type\'s tab, not the editor (#695)', () => {
     const { store, ctx } = setup()
     const service = ctx.betterSidebar
