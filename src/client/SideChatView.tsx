@@ -728,13 +728,14 @@ export function SideChatView(props: {
   /** The pending push-driven pull (one per burst of host frames). */
   const invalidateRef = useRef<number | undefined>(undefined)
   const scrollRef = useRef<HTMLDivElement | null>(null)
-  /** Heading slugs, anchor jumps and `.md` link claiming for the transcript (a
+  /** Heading slugs, anchor jumps and local file links for the transcript (a
    *  prose surface: it renders no file of its own, so a relative link target
    *  resolves against the session cwd). */
   const { surfaceRef: chatSurfaceRef, openFile: openChatFile, rewrite: rewriteChatLinks } = useMarkdownSurface({
     ctx,
     sessionId: scope.sessionId,
     cwd: scope.cwd,
+    allLocalFiles: true,
   })
   /**
    * The prose pass every row runs before rendering: LOCAL image destinations

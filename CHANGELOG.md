@@ -7,6 +7,8 @@
 - **侧边对话接入 GenUI**：通过现有 `ctx.betterSidebar` 服务新增可选的 `registerSidechatSurfaceAdapter`，支持 GenUI 0.15.0 渲染已结算的助手回复；未注册消费方时保持原 Markdown。
 - **子线程归属与生命周期**：保留线程、消息及原始文本块身份；隐藏、切换线程、替换行或卸载后撤销旧回调，交互不会转发到主会话。保留原链接改写缓存、媒体处理与流式状态。
 - **冷恢复边界**：仅移除明确标为继承的历史前缀，普通恢复标记不再清掉子线程历史。
+- **尖括号包裹的本地链接不再被追加问号**（[#1015](https://github.com/omdsh-dev/DSH-better-sidebar/issues/1015)；贡献者 PR [#1067](https://github.com/omdsh-dev/DSH-better-sidebar/pull/1067)）：行内链接 `[t](<../../../docs/notes/a.md>)` 的尖括号此前被当成 destination 的一部分，改写后变成 `[t](<./a.md>?)`，预览里不再是链接。现在先剥掉尖括号、按内部路径判定，再原样重新包裹；带空格 / 括号的 destination 一并纳入（Windows 反斜杠与标题片段一起归一）。`tests/markdown-navigation.spec.ts` 守护。
+- **侧边对话里的本地源码链接可点开**（贡献者 PR [#1074](https://github.com/omdsh-dev/DSH-better-sidebar/pull/1074)）：Side Chat 转录里的 `[source](<E:/Code/project/Foo.java:37>)` 此前按字面量显示、或只能打开 Markdown；现在渲染成文件按钮并在编辑器里打开到第 37 行（`:line`、`:line:column`、`#L24` 行号都认）。新增的 `allLocalFiles` 只对 prose surface 生效，文档预览仍只认 Markdown。
 - **贡献**：感谢 [@sunxiuguo](https://github.com/sunxiuguo) 的配套实现（[#1033](https://github.com/omdsh-dev/DSH-better-sidebar/pull/1033)）；保留原始贡献提交，并整合最新 dev 与 0.28.2 的冷会话读取修复。
 
 ### v0.28.2

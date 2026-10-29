@@ -129,11 +129,18 @@ function makeConnection(initial: 'connected' | 'disconnected' | 'connecting') {
 type Connection = ReturnType<typeof makeConnection>
 
 /** The client context face SideChatView touches (everything inert but list). */
-function makeCtx(store: ReturnType<typeof makeStore>, connection?: Connection): Context {
+function makeCtx(
+  store: ReturnType<typeof makeStore>,
+  connection?: Connection,
+  betterSidebar: { updateTab: ReturnType<typeof vi.fn>; openTab: ReturnType<typeof vi.fn> } = {
+    updateTab: vi.fn(),
+    openTab: vi.fn(),
+  },
+): Context {
   return {
     sessions: { list: store },
     ...(connection !== undefined ? { connection } : {}),
-    get: (key: string) => (key === 'betterSidebar' ? { updateTab: vi.fn(), openTab: vi.fn() } : undefined),
+    get: (key: string) => (key === 'betterSidebar' ? betterSidebar : undefined),
   } as unknown as Context
 }
 
@@ -337,6 +344,42 @@ describe('SideChatView rendering', () => {
     // Turn tail: 1.2K/345 compaction + 4s envelope-time duration.
     expect(text).toContain('输入 1.2K tok · 输出 345 tok · 4s')
     unmount()
+  })
+
+  it.each([
+    ['src/Foo.java:37-58', '/p/src/Foo.java', 37],
+    ['E:/Code/project/Foo.java:37', 'E:\\Code\\project\\Foo.java', 37],
+    ['E:/Code/my project/目录/Foo(1).java:12:5', 'E:\\Code\\my project\\目录\\Foo(1).java', 12],
+    ['src/main.ts#L8-L15', '/p/src/main.ts', 8],
+  ])('renders and opens a source link to %s at its first referenced line', async (destination, path, line) => {
+    eventsValue = EVENTS.map(event => event.type === 'assistant/message'
+      ? {
+        ...event,
+        data: {
+          ...event.data,
+          message: {
+            ...event.data.message,
+            content: [{ type: 'text', text: `See [source](<${destination}>)` }],
+          },
+        },
+      }
+      : event)
+    const host = { updateTab: vi.fn(), openTab: vi.fn() }
+    const { container, unmount } = renderRoot(createElement(SideChatView,
+      viewProps(makeCtx(threadStore(), undefined, host)),
+    ))
+    try {
+      await act(async () => {})
+      const link = [...container.querySelectorAll<HTMLButtonElement>('button')]
+        .find(button => button.title === destination.split('#')[0])
+      expect(link).not.toBeUndefined()
+      expect(link?.querySelector('svg')).not.toBeNull()
+      expect(container.textContent).not.toContain(`(<${destination}`)
+      act(() => { link?.click() })
+      expect(host.openTab).toHaveBeenCalledWith(expect.objectContaining({ path, line }))
+    } finally {
+      unmount()
+    }
   })
 
   it('shows the disconnect banner, reconnects on click, and pulls immediately on recovery', async () => {
