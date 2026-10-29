@@ -158,6 +158,7 @@ export const tr: Record<string, string> = {
   showInFolder: 'Klasörde göster',
   refreshUnsavedConfirm: 'Dosya diskte değişti. Yenileme kaydedilmemiş düzenlemeleri atar. Devam edilsin mi?',
   closeUnsavedConfirm: 'Bu dosyada kaydedilmemiş değişiklikler var. Sekmeyi kapatmak bunları atacak. Devam edilsin mi?',
+  switchUnsavedConfirm: 'Bu dosyada kaydedilmemiş değişiklikler var. Dosya değiştirmek bunları atacak. Devam edilsin mi?',
   save: 'Kaydet',
   saved: 'Kaydedildi',
   unsaved: 'Kaydedilmedi',
