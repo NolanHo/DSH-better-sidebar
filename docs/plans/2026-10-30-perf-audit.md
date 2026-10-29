@@ -55,8 +55,10 @@
 | `GET /sidebar/file`（1.5 MB） | 5–7 ms | 1.55 MB |
 | `GET /sidebar/file`（md） | 2 ms | 1.7 KB |
 | `GET /sidebar/html`（带 css/js） | 2–3 ms | 147 B（资源由同路由按需再取） |
-| `POST /sidebar/upload` 1 MB | 30–31 ms | — |
+| `POST /sidebar/upload` 1 MB | 28–31 ms | — |
 | `POST /sidebar/write` 200 KB | 3–5 ms | — |
+| `archive.build` → `archive.status` → `GET /sidebar/archive`（40 文件） | 59 ms | 4.3 KB |
+| 同上（5,000 文件） | 163 ms | 544 KB |
 
 ## 四、成本与判断
 
@@ -79,6 +81,7 @@
 - 真机移动端。
 - 任务页 / 侧边对话在**有真实 job / 模型回复**时的渲染：keyless lane 里只有空状态（接口耗时已单独记录）。
 - 设置页 UI（宿主设置对话框 + 插件的侧边卡片分组）：只测了 `settings.get`；插件在该页只挂一个导航图标与一组卡片。
+- 写操作与推送通道没有单独计时：`git.stage/unstage/commit/push`、`teams.*`、`sidechat.prompt/dequeue/cancel`、three `/sidebar/ws/*` 通道（它们的读取侧与页面流已覆盖；写操作都是既有 git/文件系统调用的薄包装）。
 - 长时间运行的内存曲线：`performance.memory` 在 Chromium 中被量化（多轮恒为 45 MB），不能作为泄漏证据，需要 CDP heap snapshot，本轮未做。
 - 多用户/远程（`dsh-remote`）场景的网络延迟。
 

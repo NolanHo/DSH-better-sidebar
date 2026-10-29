@@ -455,5 +455,34 @@ test('audit: heavy routes', async ({ page }) => {
     sessionId, path: abs('written-audit.txt'), cwd: WORKSPACE,
   }).toString(), { kind: 'text', text: 'z'.repeat(200 * 1024) })
 
+  /** The tree's "download" flow: build (async) → poll → stream the bytes. */
+  const archiveDir = async (label: string, dir: string): Promise<void> => {
+    const timing = await page.evaluate(async (target) => {
+      const post = async (method: string, payload: unknown): Promise<Response> => fetch('/sidebar/api/' + method, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const started = performance.now()
+      const build = await post('archive.build', { sessionId: target.sessionId, paths: [target.dir], name: 'audit' })
+      const built = await build.json() as { value?: { id?: string } }
+      const id = built.value?.id
+      if (id === undefined) return { ms: Math.round(performance.now() - started), status: build.status, bytes: 0, error: 'no id' }
+      let state = 'building'
+      while (state === 'building' && performance.now() - started < 120_000) {
+        await new Promise(resolve => setTimeout(resolve, 50))
+        const status = await post('archive.status', { sessionId: target.sessionId, id })
+        const body = await status.json() as { value?: { state?: string } }
+        state = body.value?.state ?? 'error'
+      }
+      const download = await fetch('/sidebar/archive?' + new URLSearchParams({ sessionId: target.sessionId, id }))
+      const bytes = (await download.arrayBuffer()).byteLength
+      return { ms: Math.round(performance.now() - started), status: download.status, bytes, state }
+    }, { dir, sessionId })
+    results.push({ label, ...timing })
+  }
+  await archiveDir('archive d00 (40 files)', WORKSPACE + '/d00')
+  await archiveDir('archive many (5,000 files)', WORKSPACE + '/many')
+
   console.log(`AUDIT_JSON ${JSON.stringify({ metric: 'heavy-routes', results })}`)
 })
