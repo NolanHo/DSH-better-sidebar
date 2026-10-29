@@ -34,8 +34,9 @@ const CWD = '/ws'
 function fileTarget(
   destination: string,
   base: { docPath?: string; cwd?: string } = { docPath: DOC, cwd: CWD },
+  allLocalFiles = false,
 ): { path: string; fragment: string } {
-  const target: MarkdownAnchorTarget | null = markdownAnchorTarget(destination, base.docPath, base.cwd)
+  const target: MarkdownAnchorTarget | null = markdownAnchorTarget(destination, base.docPath, base.cwd, allLocalFiles)
   if (target === null || target.kind !== 'file') throw new Error(`not claimed as a file link: ${destination}`)
   return { path: target.path, fragment: target.fragment }
 }
@@ -160,9 +161,44 @@ describe('markdownAnchorTarget', () => {
     expect(markdownAnchorTarget('', DOC, CWD)).toBeNull()
     expect(markdownAnchorTarget('   ', DOC, CWD)).toBeNull()
   })
+
+  it('optionally claims ordinary local files while keeping the document default narrow', () => {
+    expect(markdownAnchorTarget('./src/main.ts', DOC, CWD)).toBeNull()
+    expect(fileTarget('./src/main.ts', { docPath: undefined, cwd: CWD }, true))
+      .toEqual({ path: '/ws/src/main.ts', fragment: '' })
+    expect(fileTarget('E:/Code/project/Foo.java:37', {}, true))
+      .toEqual({ path: 'E:\\Code\\project\\Foo.java:37', fragment: '' })
+    expect(markdownAnchorTarget('./src/main.ts#heading', undefined, CWD, true)).toBeNull()
+    for (const destination of [
+      './src/main.ts?raw=1',
+      'https://example.com/main.ts',
+      '//example.com/main.ts',
+      'javascript:alert(1)',
+      'data:text/plain,source',
+    ]) {
+      expect(markdownAnchorTarget(destination, undefined, CWD, true), destination).toBeNull()
+    }
+    expect(markdownAnchorTarget('./src/main.ts#L37', undefined, CWD, true)).toEqual({
+      kind: 'file', path: '/ws/src/main.ts', fragment: 'L37',
+    })
+  })
 })
 
 describe('rewriteLocalMarkdownLinks', () => {
+  it('preserves bracketed source links and claims them only for prose surfaces', () => {
+    const source = '[java](<E:/Code/project/Foo.java:37>)'
+    expect(rewriteLocalMarkdownLinks(source, undefined, CWD)).toBe('[java](<E:/Code/project/Foo.java:37?>)')
+    expect(rewriteLocalMarkdownLinks(source, undefined, CWD, true)).toBe(source)
+    expect(rewriteLocalMarkdownLinks('[notes](./notes.txt)', undefined, CWD, true))
+      .toBe('[notes](./notes.txt)')
+    expect(rewriteLocalMarkdownLinks('`' + source + '`', undefined, CWD, true))
+      .toBe('`' + source + '`')
+    expect(rewriteLocalMarkdownLinks('[site](https://example.com/Foo.java:37)', undefined, CWD, true))
+      .toBe('[site](https://example.com/Foo.java:37)')
+    expect(rewriteLocalMarkdownLinks('[java](<E:/Code/my project/Foo.java:37> "source")', undefined, CWD, true))
+      .toBe('[java](<E:/Code/my project/Foo.java:37> "source")')
+  })
+
   it('carries a heading fragment past the host parser as an encoded `#`', () => {
     expect(rewriteLocalMarkdownLinks('[x](./other.md#标题)', DOC, CWD)).toBe('[x](./other.md%23标题)')
     expect(rewriteLocalMarkdownLinks('[x](./other.md#)', DOC, CWD)).toBe('[x](./other.md%23)')
