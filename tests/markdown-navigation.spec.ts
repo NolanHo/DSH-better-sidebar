@@ -300,8 +300,13 @@ describe('rewriteLocalMarkdownLinks', () => {
       ['[t](<./notes.txt>)', '[t](<./notes.txt?>)'],
       ['[t](<https://e.com/a.md#top>)', '[t](<https://e.com/a.md#top>)'],
       ['[t](<//e.com/a.md>)', '[t](<//e.com/a.md>)'],
-      // Destinations with spaces still fall through to the renderer.
+      // An angle destination may carry a space (or a parenthesis). The whole
+      // destination is matched and judged on its inner text: a .md one
+      // round-trips byte-identically, a local non-markdown one is pinned inert,
+      // and the Windows backslash normalization reaches it too (#1037).
       ['[t](<../../../docs/case with spaces.md>)', '[t](<../../../docs/case with spaces.md>)'],
+      ['[t](<C:\\ws\\_a b\\r.md#标题>)', '[t](<C:/ws/_a b/r.md%23标题>)'],
+      ['[t](<./notes with space.txt>)', '[t](<./notes with space.txt?>)'],
       ['![alt](<./pic.png>)', '![alt](<./pic.png>)'],
       ['`[t](<./a.md#标题>)`', '`[t](<./a.md#标题>)`'],
     ]
