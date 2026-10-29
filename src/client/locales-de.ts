@@ -144,6 +144,7 @@ export const de: Record<string, string> = {
   showInFolder: 'Im Ordner anzeigen',
   refreshUnsavedConfirm: 'Die Datei wurde geändert. Beim Aktualisieren gehen ungespeicherte Änderungen verloren. Fortfahren?',
   closeUnsavedConfirm: 'Diese Datei hat ungespeicherte Änderungen. Beim Schließen des Tabs gehen sie verloren. Fortfahren?',
+  switchUnsavedConfirm: 'Diese Datei hat ungespeicherte Änderungen. Beim Wechseln der Datei gehen sie verloren. Fortfahren?',
   save: 'Speichern',
   saved: 'Gespeichert',
   unsaved: 'Nicht gespeichert',

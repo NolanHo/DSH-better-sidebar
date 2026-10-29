@@ -242,7 +242,7 @@ export function EditorHost(props: {
       // registry the tab close uses. Re-opening the current path is not a
       // switch.
       if (absolute !== path && isEditorDirty(tab.id, scope.sessionId)
-        && !confirmDiscard(t('closeUnsavedConfirm'))) return
+        && !confirmDiscard(t('switchUnsavedConfirm'))) return
       ctx.get('betterSidebar')?.updateTab(tab.id, { path: absolute, title: baseName(absolute) }, scope.sessionId)
     } else {
       openSidebarFile(ctx, scope.sessionId, absolute, { cwd: scope.cwd })
