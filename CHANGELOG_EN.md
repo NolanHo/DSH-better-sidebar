@@ -4,6 +4,13 @@
 >
 > 📝 The Chinese [CHANGELOG](./CHANGELOG.md) is the authoritative, item-by-item record; this file carries the English summaries and has historically lagged behind it. Where the two disagree, the Chinese one is current.
 
+### Unreleased
+
+- 🪟 **Windows + WSL workspaces: a UNC path is no longer folded into a drive-relative one.** Re-spelling paths on a Windows base folded every run of separators into one `\`, which also folded the UNC prefix of `\\wsl.localhost\<distro>\...` into `\wsl.localhost\...`; the host's `path.resolve()` then anchored that on its own process drive (`C:\wsl.localhost\...`), so every file opened from a WSL workspace failed with ENOENT. The UNC prefix now survives and only the rest is folded (drive paths are unchanged).
+  - 🧪 `tests/worktree-address.spec.ts` adds one case: UNC absolute, workspace-relative, and forward-slash spellings all keep the two leading separators.
+- 🗂 **A session cwd that is a Git repository subdirectory is no longer lifted to the repository top** ([#1024](https://github.com/omdsh-dev/DSH-better-sidebar/issues/1024), [#1080](https://github.com/omdsh-dev/DSH-better-sidebar/issues/1080); contributor PR [#1070](https://github.com/omdsh-dev/DSH-better-sidebar/pull/1070) @hy5424): the sidebar root was replaced with `git rev-parse --show-toplevel`, so a relative file link in chat resolved to `<repo>/<file>` instead of `<repo>/<subdir>/<file>` (ENOENT) and file search used the wrong root. The session cwd is now the root as it stands; only linked-worktree evidence from the session's own tool calls replaces it. The cwd is canonicalized first, so symlinked spellings (`/var` vs `/private/var`) cannot make a nested worktree look outside the workspace (#952).
+  - 🧪 `tests/active-worktree.spec.ts` adds one ASCII and one Chinese subdirectory case (both red before the fix).
+
 ### v0.29.0
 
 - **GenUI in side chats**: the existing `ctx.betterSidebar` service exposes the opt-in `registerSidechatSurfaceAdapter` for GenUI 0.15.0 to render settled assistant replies. Without a consumer, Markdown rendering stays unchanged.
