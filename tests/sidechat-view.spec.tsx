@@ -186,6 +186,40 @@ async function clickArchive(button: HTMLButtonElement): Promise<void> {
   })
 }
 
+/** jsdom ships no ResizeObserver; a visible Tooltip bubble measures itself
+ *  with one. The measurement result is irrelevant here — only the rendered
+ *  label is asserted. */
+function stubResizeObserver(): () => void {
+  const original = (globalThis as Record<string, unknown>).ResizeObserver
+  class Fake {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  }
+  ;(globalThis as Record<string, unknown>).ResizeObserver = Fake
+  return () => {
+    if (original === undefined) delete (globalThis as Record<string, unknown>).ResizeObserver
+    else (globalThis as Record<string, unknown>).ResizeObserver = original
+  }
+}
+
+/** Open a composer-bar control's hover bubble and return its text. */
+async function tooltipOf(control: HTMLElement): Promise<string> {
+  const restore = stubResizeObserver()
+  try {
+    const anchor = control.parentElement
+    if (anchor === null) throw new Error('the control is missing its hover anchor')
+    await act(async () => {
+      anchor.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))
+      // ComposerTip's 120 ms hover delay (TIP_DELAY_MS).
+      await new Promise(resolve => setTimeout(resolve, 180))
+    })
+    return document.body.querySelector('[role="tooltip"]')?.textContent ?? ''
+  } finally {
+    restore()
+  }
+}
+
 function jsonResponse(value: unknown): Response {
   return { ok: true, status: 200, json: async () => value } as unknown as Response
 }
@@ -372,12 +406,42 @@ describe('SideChatView rendering', () => {
 })
 
 describe('SideChatView archive', () => {
-  it('archives the bound thread with stopActivity and rebinds the tab to the newest remaining thread', async () => {
+  /** A bound session the host's own session list CAN show (no subagent
+   *  origin): the only case in which the archive action stays enabled, so the
+   *  handler's archive-and-rebind contract is pinned on it. */
+  const recoverableStore = (running = false) => makeStore({
+    byId: {
+      root: { id: 'root', displayTitle: '主会话', running: false },
+      t1: { id: 't1', displayTitle: '线程一', running },
+    },
+  })
+
+  it('disables archiving a side thread and explains that the host can never show it again', async () => {
+    const host = makeArchiveHost()
+    const props = viewProps(makeArchiveCtx(threadStore(), host))
+    const { container, unmount } = renderRoot(createElement(SideChatView, props))
+    await act(async () => {})  // flush the initial transcript pull
+
+    // Every thread this view binds is `origin: 'subagent'`, and the host's
+    // session list hides those rows in ALL archive filters (its
+    // sessionVisible() returns false BEFORE the filter runs), so archiving one
+    // is a one-way door: no list entry can ever offer "unarchive".
+    const button = archiveButton(container)
+    expect(button.disabled).toBe(true)
+    expect(await tooltipOf(button)).toContain('归档后无法找回')
+    // A disabled control swallows the click: no request, no rebind.
+    await clickArchive(button)
+    expect(host.archiveSession).not.toHaveBeenCalled()
+    expect(host.betterSidebar.updateTab).not.toHaveBeenCalled()
+    unmount()
+  })
+
+  it('archives a recoverable bound session with stopActivity and rebinds to the newest remaining thread', async () => {
     const host = makeArchiveHost()
     const store = makeStore({
       byId: {
         root: { id: 'root', displayTitle: '主会话', running: false },
-        t1: { id: 't1', displayTitle: 'Side: 线程一', origin: 'subagent', parentId: 'root', running: false },
+        t1: { id: 't1', displayTitle: '线程一', running: false },
         t2: { id: 't2', displayTitle: 'Side: 线程二', origin: 'subagent', parentId: 'root', running: false },
       },
       // The host's own catalog carries the creation order the fallback ranks by.
@@ -385,7 +449,6 @@ describe('SideChatView archive', () => {
         root: {
           values: {
             subagentCatalog: [
-              { id: 't1', createdAt: 1_000, mode: 'continuable', label: 'Side: 线程一' },
               { id: 't2', createdAt: 2_000, mode: 'continuable', label: 'Side: 线程二' },
             ],
           },
@@ -403,7 +466,7 @@ describe('SideChatView archive', () => {
     // The host's own archive capability, once, with a running agent settled.
     expect(host.archiveSession).toHaveBeenCalledTimes(1)
     expect(host.archiveSession).toHaveBeenCalledWith('t1', { stopActivity: true })
-    // The tab moves to the newest remaining thread (t2 outranks t1 in the catalog).
+    // The tab moves to the newest remaining thread.
     expect(host.betterSidebar.updateTab).toHaveBeenCalledTimes(1)
     expect(host.betterSidebar.updateTab).toHaveBeenCalledWith('tab1', { meta: { threadId: 't2' } })
     unmount()
@@ -411,13 +474,7 @@ describe('SideChatView archive', () => {
 
   it('disables the archive button while the thread runs and archives nothing on click', async () => {
     const host = makeArchiveHost()
-    const store = makeStore({
-      byId: {
-        root: { id: 'root', displayTitle: '主会话', running: false },
-        t1: { id: 't1', displayTitle: 'Side: 线程一', origin: 'subagent', parentId: 'root', running: true },
-      },
-    })
-    const props = viewProps(makeArchiveCtx(store, host))
+    const props = viewProps(makeArchiveCtx(recoverableStore(true), host))
     const { container, unmount } = renderRoot(createElement(SideChatView, props))
     await act(async () => {})  // flush the initial transcript pull
 
@@ -432,8 +489,7 @@ describe('SideChatView archive', () => {
 
   it('unbinds the tab to the empty state once no thread is left to switch to', async () => {
     const host = makeArchiveHost()
-    const store = threadStore()  // the bound thread t1 is the only one under 'root'
-    const props = viewProps(makeArchiveCtx(store, host))
+    const props = viewProps(makeArchiveCtx(recoverableStore(), host))
     const { container, unmount } = renderRoot(createElement(SideChatView, props))
     await act(async () => {})  // flush the initial transcript pull
 

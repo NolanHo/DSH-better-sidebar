@@ -429,6 +429,7 @@ export const vi: Record<string, string> = {
   sideChatSaveTitle: 'Nâng luồng này thành phiên cấp cao nhất, xuất hiện trong danh sách phiên chính',
   sideChatArchive: 'Lưu trữ cuộc trò chuyện bên này (tìm lại qua “Hiện mục đã lưu trữ” trong danh sách phiên)',
   sideChatArchiveRunning: 'Luồng này đang chạy — hãy dừng trước khi lưu trữ',
+  sideChatArchiveBlocked: 'Hội thoại bên sẽ không thể tìm lại sau khi lưu trữ (danh sách phiên của máy chủ ẩn hội thoại bên ở mọi bộ lọc), vì vậy lưu trữ bị tắt — hãy dùng "Lưu thành phiên mới" trước nếu muốn giữ lại',
   sideChatSaved: 'Đã lưu thành phiên mới',
   sideChatNoTurn: 'Cần hoàn thành ít nhất một vòng trò chuyện trước khi lưu',
   sideChatPendingDrop: 'Tin nhắn theo dõi chưa hoàn thành cuối cùng sẽ không được đưa vào phiên đã lưu',

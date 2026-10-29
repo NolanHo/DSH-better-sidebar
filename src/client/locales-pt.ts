@@ -412,6 +412,7 @@ export const pt: Record<string, string> = {
   sideChatSaveTitle: 'Promover este tópico a uma sessão de nível superior na lista principal de sessões',
   sideChatArchive: 'Arquivar esta conversa lateral (encontre-a novamente em “Mostrar arquivadas” na lista de sessões)',
   sideChatArchiveRunning: 'Este tópico está em execução — pare-o antes de arquivar',
+  sideChatArchiveBlocked: 'Uma conversa lateral nunca mais será encontrada depois de arquivada (a lista de sessões do host oculta conversas laterais em todos os filtros), então o arquivamento está desativado — use "Salvar como nova sessão" primeiro para mantê-la',
   sideChatSaved: 'Salvo como nova sessão',
   sideChatNoTurn: 'O salvamento está disponível após o primeiro turno concluído',
   sideChatPendingDrop: 'A última pergunta não respondida não será incluída na sessão salva',

@@ -431,6 +431,7 @@ export const pl: Record<string, string> = {
   sideChatSaveTitle: 'Promuj ten wątek do sesji najwyższego poziomu na głównej liście sesji',
   sideChatArchive: 'Zarchiwizuj tę rozmowę boczną (znajdziesz ją ponownie przez „Pokaż zarchiwizowane” na liście sesji)',
   sideChatArchiveRunning: 'Ten wątek działa — zatrzymaj go przed archiwizacją',
+  sideChatArchiveBlocked: 'Rozmowa boczna po zarchiwizowaniu nie będzie już możliwa do odnalezienia (lista sesji hosta ukrywa rozmowy boczne we wszystkich filtrach), dlatego archiwizacja jest wyłączona — aby ją zachować, najpierw użyj „Zapisz jako nową sesję”',
   sideChatSaved: 'Zapisano jako nową sesję',
   sideChatNoTurn: 'Zapis jest dostępny po pierwszej ukończonej turze',
   sideChatPendingDrop: 'Ostatnie niezakończone pytanie następcze nie zostanie uwzględnione w zapisanej sesji',

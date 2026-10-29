@@ -415,6 +415,7 @@ export const de: Record<string, string> = {
   sideChatSaveTitle: 'Diesen Thread in der Hauptsitzungsliste zu einer Top-Level-Sitzung erheben',
   sideChatArchive: 'Diese Nebenunterhaltung archivieren (über „Archivierte anzeigen“ in der Sitzungsliste wiederzufinden)',
   sideChatArchiveRunning: 'Dieser Thread läuft — vor dem Archivieren stoppen',
+  sideChatArchiveBlocked: 'Eine Nebenunterhaltung ist nach dem Archivieren nicht wiederzufinden (die Sitzungsliste des Hosts blendet Nebenunterhaltungen in jedem Filter aus), daher ist das Archivieren deaktiviert — zum Behalten zuerst „Als neue Sitzung speichern“ verwenden',
   sideChatSaved: 'Als neue Sitzung gespeichert',
   sideChatNoTurn: 'Das Speichern ist nach der ersten abgeschlossenen Runde verfügbar',
   sideChatPendingDrop: 'Die letzte unbeantwortete Nachfrage wird in der gespeicherten Sitzung nicht enthalten sein',
