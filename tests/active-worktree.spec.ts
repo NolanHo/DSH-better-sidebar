@@ -162,7 +162,7 @@ describe('active worktree root', () => {
     }
   })
 
-// A workspace registered at `<repo>/<subdir>` (a plain subdirectory, not a
+  // A workspace registered at `<repo>/<subdir>` (a plain subdirectory, not a
   // linked worktree) must keep that subdirectory as the root: a relative link
   // such as `tools/a.md` is resolved against it, so lifting the root to
   // `<repo>` opens `<repo>/tools/a.md` and ENOENTs (#1024 / #1080). The ASCII
@@ -191,6 +191,23 @@ describe('active worktree root', () => {
       }
     })
   }
+
+  it('keeps a session cwd that is a SUBDIRECTORY of the repository', async () => {
+    // A workspace registered at `<repo>/workspace` (a plain subdirectory, not a
+    // linked worktree) must stay the root: replacing it with the repository
+    // toplevel makes every relative path resolve one level too high.
+    const root = mkdtempSync(join(tmpdir(), 'dsh-active-root-'))
+    const repo = join(root, 'repo')
+    const subdir = join(repo, 'workspace')
+    try {
+      initRepo(repo, 'a.txt')
+      mkdirSync(subdir)
+      const ctx = sessionCtx(subdir, [])
+      await expect(activeWorktreeRootOf(ctx, 's-subdir', subdir)).resolves.toBe(realpathSync.native(subdir))
+    } finally {
+      removeTree(root)
+    }
+  })
 
   it('answers a detached session with its base and never reads the stored log', async () => {
     // A detached session has no live events; folding the STORED log would decode
