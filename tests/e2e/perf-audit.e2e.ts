@@ -41,7 +41,8 @@ function writeSeedWorkspace(): void {
     mkdirSync(dir, { recursive: true })
     for (let f = 0; f < 40; f++) writeFileSync(join(dir, `f${String(f).padStart(3, '0')}.md`), `# ${d}/${f}\n`)
   }
-  // A node_modules-sized directory: the tree renders every row (no windowing).
+  // A node_modules-sized directory. The host caps one level at 1,000 rows and
+  // the tree shows its truncation notice, so this exercises the capped render.
   mkdirSync(join(WORKSPACE, 'many'), { recursive: true })
   for (let f = 0; f < 5_000; f++) writeFileSync(join(WORKSPACE, 'many', `m${String(f).padStart(4, '0')}.md`), `# ${f}\n`)
   const big: string[] = ['# Audit Document', '']
