@@ -8,6 +8,7 @@
 - **子线程归属与生命周期**：保留线程、消息及原始文本块身份；隐藏、切换线程、替换行或卸载后撤销旧回调，交互不会转发到主会话。保留原链接改写缓存、媒体处理与流式状态。
 - **冷恢复边界**：仅移除明确标为继承的历史前缀，普通恢复标记不再清掉子线程历史。
 - **贡献**：感谢 [@sunxiuguo](https://github.com/sunxiuguo) 的配套实现（[#1033](https://github.com/omdsh-dev/DSH-better-sidebar/pull/1033)）；保留原始贡献提交，并整合最新 dev 与 0.28.2 的冷会话读取修复。
+- 🐞 **「侧边卡片」不再给程序化类型发假开关**（[#1009](https://github.com/omdsh-dev/DSH-better-sidebar/issues/1009)）：`hidden: true` 的 tab 类型（内置的 diff 页、dsh-remote 的 `dsh-remote:file`）本就没有 `+` 菜单行和原生 guide 条目，设置页却照注册表给它发了一张卡片——点掉后侧边栏毫无变化，唯一实际效果是 `openTab` 静默拒绝它的打开（差异预览的「展开为独立页签」、远程文件打开随之失效），同一现象也被 dsh-remote 侧报告为「开关无效」。现在清单只列真正出现在侧边栏的类型，`isTabEnabled()` 对 hidden 类型恒为 true（旧版本写下的 `tabsEnabled[id] = false` 不再拦截它们的打开）。`tests/side-card-section.spec.tsx` + `tests/service.spec.ts` 各新增一例守护。
 
 ### v0.28.2
 
