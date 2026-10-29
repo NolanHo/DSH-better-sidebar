@@ -6,6 +6,8 @@
 
 - 🪟 **Windows + WSL 工作区：UNC 路径不再被折叠成盘符相对路径**：`resolveAddressPath` 在 Windows 基址下重排分隔符时把每段连续 `\` 折成一个，`\\wsl.localhost\<distro>\...` 的 UNC 前缀也因此被折成 `\wsl.localhost\...`；宿主随后用 `path.resolve()` 把它锚定到自己的当前盘（`C:\wsl.localhost\...`），侧边栏打开 WSL 工作区里任何文件都报 `ENOENT`。现在 UNC 前缀原样保留、只折叠其后的部分（盘符路径行为不变）。
   - 🧪 测试：`tests/worktree-address.spec.ts` 新增 1 例（UNC 绝对路径、工作区相对路径、正斜杠写法都保持双前导分隔符）。
+- 🗂 **会话 cwd 是 Git 仓库子目录时不再被上抬到仓库顶层**（[#1024](https://github.com/omdsh-dev/DSH-better-sidebar/issues/1024) / [#1080](https://github.com/omdsh-dev/DSH-better-sidebar/issues/1080)；贡献者 PR [#1070](https://github.com/omdsh-dev/DSH-better-sidebar/pull/1070) @hy5424）：侧边栏根此前被替换成 `git rev-parse --show-toplevel`，聊天里的相对路径文件链接因此解析成 `<repo>/<file>` 而不是 `<repo>/<subdir>/<file>`（ENOENT），文件搜索也搜错根。现在会话 cwd 本身即根，只有会话自己的工具调用证据指向 linked worktree 时才替换；基址先按真实路径规范化，`/var` 与 `/private/var` 这类符号链接拼写不会让嵌套 worktree 被误判到工作区之外（#952）。
+  - 🧪 测试：`tests/active-worktree.spec.ts` 新增英文 / 中文子目录两例（修复前均为红）。
 
 ### v0.29.0
 
