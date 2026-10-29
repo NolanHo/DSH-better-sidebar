@@ -373,8 +373,12 @@ export function rewriteLocalMarkdownLinks(
     // so nested content keeps whatever the image pass gave it.
     .replace(
       /(?<!!)\[((?:[^[\]]|\[[^\]]*\])*)\]\(([^)\s]+)((?:\s+"[^"]*")?)\)/g,
-      (_match, label: string, destination: string, title: string) =>
-        `[${label}](${rewriteDestination(destination, docPath, cwd)}${title})`,
+      (_match, label: string, destination: string, title: string) => {
+        const bracketed = destination.startsWith('<') && destination.endsWith('>')
+        const inner = bracketed ? destination.slice(1, -1) : destination
+        const rewritten = rewriteDestination(inner, docPath, cwd)
+        return `[${label}](${bracketed ? `<${rewritten}>` : rewritten}${title})`
+      },
     )
     // Reference definitions. Every local one is fair game: a definition an
     // image uses was already turned into an absolute media URL by the image
