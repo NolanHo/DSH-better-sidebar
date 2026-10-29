@@ -42,12 +42,26 @@
      containing block with the ancestor's own padding box. The shell's content
      is itself fixed/viewport-sized, so that box is zero-height: the host
      collapses to 0px and the whole native right sidebar goes invisible while
-     its DOM (and every panel in it) is fully present. `vh` is measured
-     against the viewport instead, so the height survives any ancestor's
-     containing-block games; the over-constrained triple (top: 0 + height +
-     bottom: 0) resolves by ignoring `bottom`, keeping this a top-anchored
-     viewport-height layer. */
+     its DOM (and every panel in it) is fully present. Viewport units are
+     measured against the viewport instead, so the height survives any
+     ancestor's containing-block games; the over-constrained triple (top: 0 +
+     height + bottom: 0) resolves by ignoring `bottom`, keeping this a
+     top-anchored viewport-height layer.
+
+     TWO declarations, cascade order is the contract (issue #1014). `vh` is
+     the LARGE viewport: on a mobile browser with its URL bar showing, the
+     layer resolves taller than the layout viewport (`innerHeight`), and the
+     mount self-check in index.tsx reads a rect.height that far from
+     `innerHeight` as a page-level transform. It then flips degraded mode,
+     whose `position: absolute` DOES contribute to the document's height —
+     the whole page starts scrolling and the shifted layer keeps the check
+     failing, so it never recovers (#1014's "exit and re-enter" repro).
+     `dvh` tracks the dynamic viewport, which is what `innerHeight`
+     reports. Declared last so it wins; `vh` stays first as the fallback for
+     engines without dvh — they keep the #616 fix unchanged and only mobile
+     browsers with a retractable URL bar are affected by the old value. */
   height: 100vh;
+  height: 100dvh;
   z-index: 25;
   pointer-events: none;
   /* Clip at the viewport edge: collapsed panels slide off-screen with
@@ -55,8 +69,8 @@
      contributes to its ancestors' scrollable overflow — without this the
      hidden panels extended the document's scrollable area, making the whole
      page draggable left-right and up-down while any panel was collapsed.
-     The host is exactly viewport-sized (inset: 0 + the explicit 100vh
-     height above), so the clip is invisible
+     The host is exactly viewport-sized (inset: 0 + the explicit viewport
+     height above, `vh` fallback then `dvh`), so the clip is invisible
      until a panel slides in from the edge; internal scroll containers and
      the app's fixed overlay stack are unaffected. `clip`, not `hidden`: a
      hidden box stays a PROGRAMMATICALLY scrollable container, and a
