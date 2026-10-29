@@ -7,7 +7,6 @@
 - ⚡ **大 Markdown 的 Mermaid 预览不再卡死渲染器（chunk 内测量隔离到沙箱 iframe）**：Mermaid 用 `SVGElement.getBBox()` 量文字，测量节点挂在 `document.body` 上 → 每次测量都刷新整个 DSH 文档布局。真机实测一次 `getBBox` **59–75 ms**（15,418 节点），空 iframe 里只要 **1 ms**；31 张图因此阻塞主线程 >20 s，触发桌面壳看门狗杀渲染器，恢复标签页后循环卡死。现在图表改在隐藏的 `sandbox="allow-scripts"` iframe（blob: 自包含 mermaid UMD + 协议）里渲染，父侧只做 postMessage 收发与 SVG 清洗：**单图 1,500–7,300 ms → 30–104 ms，31 图约 5 s 内完成**，客户端 mermaid chunk 同时从 **7.04 MB → 3.69 MB**。另加共享渲染队列（可见/近视口优先，其余 `requestIdleCallback` 逐张补齐，两次之间让出 16 ms 主线程；**所有图最终都会渲染成图，不再退化为代码块**）与按围栏行数预留高度的占位骨架。设计与实测见 [docs/plans/2026-10-23-mermaid-iframe-isolation.md](docs/plans/2026-10-23-mermaid-iframe-isolation.md)。
 - ⚡ **大文档滚动流畅性：渲染让位于滚动、隐藏页签不空转、摘掉全量 DOM 扫描**：图表渲染队列在滚动期间暂停（停止滚动 350 ms 后恢复），并且只服务当前可见的预览——隐藏页签里的图表保持占位、切回时才渲染；`Markdown` 变更触发的两次全量扫描（内联 HTML pass、标题锚点 pass）由「每次 mutation 跑一遍」（实测 8–15 ms/次）改为 80 ms 合并一次；打开文档时的近视口判断改为先批量读 rect、再统一写入，去掉每张图一次强制布局；`.mermaidWrap` 增加 `content-visibility: auto` + `contain-intrinsic-size` + `contain: layout paint style`，视口外的图表不再参与布局与绘制。滚动时不再有后台渲染、全量扫描与视口外 SVG 重绘抢主线程；图表仍会在滚动停止后或进入视口时补齐，不退化为代码块。
 - 🐞 **图表渲染失败时直接显示 mermaid 的解析错误**：之前只显示通用「Mermaid 渲染失败」+ 源码块（完整错误只在 hover title 里）。现在错误条下方直接给出 mermaid 报错的首两行（如 `Parse error on line 10 ... Expecting 'SEMI', ... got 'UNICODE_TEXT'`），配合下方源码可快速定位坏围栏；错误信息仍完整保留在 title 中。
-
 - 🪟 **Windows + WSL 工作区：UNC 路径不再被折叠成盘符相对路径**：`resolveAddressPath` 在 Windows 基址下重排分隔符时把每段连续 `\` 折成一个，`\\wsl.localhost\<distro>\...` 的 UNC 前缀也因此被折成 `\wsl.localhost\...`；宿主随后用 `path.resolve()` 把它锚定到自己的当前盘（`C:\wsl.localhost\...`），侧边栏打开 WSL 工作区里任何文件都报 `ENOENT`。现在 UNC 前缀原样保留、只折叠其后的部分（盘符路径行为不变）。
   - 🧪 测试：`tests/worktree-address.spec.ts` 新增 1 例（UNC 绝对路径、工作区相对路径、正斜杠写法都保持双前导分隔符）。
 - 🗂 **会话 cwd 是 Git 仓库子目录时不再被上抬到仓库顶层**（[#1024](https://github.com/omdsh-dev/DSH-better-sidebar/issues/1024) / [#1080](https://github.com/omdsh-dev/DSH-better-sidebar/issues/1080)；贡献者 PR [#1070](https://github.com/omdsh-dev/DSH-better-sidebar/pull/1070) @hy5424）：侧边栏根此前被替换成 `git rev-parse --show-toplevel`，聊天里的相对路径文件链接因此解析成 `<repo>/<file>` 而不是 `<repo>/<subdir>/<file>`（ENOENT），文件搜索也搜错根。现在会话 cwd 本身即根，只有会话自己的工具调用证据指向 linked worktree 时才替换；基址先按真实路径规范化，`/var` 与 `/private/var` 这类符号链接拼写不会让嵌套 worktree 被误判到工作区之外（#952）。
@@ -16,17 +15,19 @@
 - 🖼 **HTML 预览能加载相对 CSS / JS**（[#959](https://github.com/omdsh-dev/DSH-better-sidebar/issues/959)；贡献者 PR [#972](https://github.com/omdsh-dev/DSH-better-sidebar/pull/972)）：`/sidebar/file` 与 `/sidebar/html` 共用的 MIME 表只声明了图片 / PDF / HTML，`.css` / `.js` 落到 `application/octet-stream`，浏览器严格 MIME 检查直接拒收，页面无样式、脚本不执行。补上 css / js / mjs / json / 字体 / wasm 等 web 资源类型；未知扩展名仍回落 octet-stream。
 - 📝 **合并模式下换文件前确认未保存草稿**（[#1072](https://github.com/omdsh-dev/DSH-better-sidebar/issues/1072) 同路径；贡献者 PR [#1083](https://github.com/omdsh-dev/DSH-better-sidebar/pull/1083)）：`EditorHost.openFile` 的 in-place 分支此前直接改写 `path`，viewer 重挂载、草稿静默消失；现在与关闭 / 删除共用同一份脏草稿登记表（`isEditorDirty`），取消则停在原文件，被其它 tab 类型认领或打开同一路径时不弹。新增 `switchUnsavedConfirm` 文案（21 份词典）。
 - 🐞 **三笔小修**：分栏窗格唯一标签拖回后不再丢失（[#877](https://github.com/omdsh-dev/DSH-better-sidebar/issues/877)，PR [#922](https://github.com/omdsh-dev/DSH-better-sidebar/pull/922)）；搜索探针同步 spawn 失败时不再抛 `Cannot access 'timer' before initialization` 而失去 plain-walk 兜底（[#995](https://github.com/omdsh-dev/DSH-better-sidebar/issues/995)，PR [#1032](https://github.com/omdsh-dev/DSH-better-sidebar/pull/1032)）；并发同名上传的 rename 争用改为有界重试（PR [#966](https://github.com/omdsh-dev/DSH-better-sidebar/pull/966)）。
-
+- **尖括号包裹的本地链接不再被追加问号**（[#1015](https://github.com/omdsh-dev/DSH-better-sidebar/issues/1015)；贡献者 PR [#1067](https://github.com/omdsh-dev/DSH-better-sidebar/pull/1067)）：行内链接 `[t](<../../../docs/notes/a.md>)` 的尖括号此前被当成 destination 的一部分，改写后变成 `[t](<./a.md>?)`，预览里不再是链接。现在先剥掉尖括号、按内部路径判定，再原样重新包裹；带空格 / 括号的 destination 一并纳入（Windows 反斜杠与标题片段一起归一）。`tests/markdown-navigation.spec.ts` 守护。
+- **侧边对话里的本地源码链接可点开**（贡献者 PR [#1074](https://github.com/omdsh-dev/DSH-better-sidebar/pull/1074)）：Side Chat 转录里的 `[source](<E:/Code/project/Foo.java:37>)` 此前按字面量显示、或只能打开 Markdown；现在渲染成文件按钮并在编辑器里打开到第 37 行（`:line`、`:line:column`、`#L24` 行号都认）。新增的 `allLocalFiles` 只对 prose surface 生效，文档预览仍只认 Markdown。
+- 🐞 **「侧边卡片」不再给程序化类型发假开关**（[#1009](https://github.com/omdsh-dev/DSH-better-sidebar/issues/1009)）：`hidden: true` 的 tab 类型（内置的 diff 页、dsh-remote 的 `dsh-remote:file`）本就没有 `+` 菜单行和原生 guide 条目，设置页却照注册表给它发了一张卡片——点掉后侧边栏毫无变化，唯一实际效果是 `openTab` 静默拒绝它的打开（差异预览的「展开为独立页签」、远程文件打开随之失效），同一现象也被 dsh-remote 侧报告为「开关无效」。现在清单只列真正出现在侧边栏的类型，`isTabEnabled()` 对 hidden 类型恒为 true（旧版本写下的 `tabsEnabled[id] = false` 不再拦截它们的打开）。`tests/side-card-section.spec.tsx` + `tests/service.spec.ts` 各新增一例守护。
+- 🛡 **侧边对话不再可以被归档进死角**（[#949](https://github.com/omdsh-dev/DSH-better-sidebar/issues/949)）：宿主对 `origin: subagent` 的会话行在任何筛选下都不渲染（连「已归档」也看不到），侧聊一经归档就再也捞不回来。现在侧聊的归档按钮对侧线程禁用，并用 tooltip 说明原因（指向「保存为新会话」）；关闭页签仍按 #942 的既定行为归档其会话。
+- 🔌 **`agentOpenTools` 的开关读取改成三态**（[#951](https://github.com/omdsh-dev/DSH-better-sidebar/issues/951)）：设置行在重挂载窗口里会缺席，旧实现把「读不到」当成「关闭」并注销 `sidebar_open`，于是工具反复注册/注销、重启后第一轮也不在。现在只有明确 `false` 才注销，并在设置写入成功与 loader 就绪后各重估一次；重复 sync 幂等。
+- 📱 **手机端整页不再可上下拖动**（[#1014](https://github.com/omdsh-dev/DSH-better-sidebar/issues/1014)）：`[data-dsh-panel-host]` 的 `height: 100vh` 按大视口解析（地址栏展开时比 `innerHeight` 高），挂载自检误判为「页面被 transform」→ 降级成 absolute 把文档撑高。现在 `100vh` 兜底 + `100dvh` 跟随动态视口，差值归零；不支持 `dvh` 的引擎保持旧行为（#616 的「不依赖包含块」不回归）。
 
 ### v0.29.0
 
 - **侧边对话接入 GenUI**：通过现有 `ctx.betterSidebar` 服务新增可选的 `registerSidechatSurfaceAdapter`，支持 GenUI 0.15.0 渲染已结算的助手回复；未注册消费方时保持原 Markdown。
 - **子线程归属与生命周期**：保留线程、消息及原始文本块身份；隐藏、切换线程、替换行或卸载后撤销旧回调，交互不会转发到主会话。保留原链接改写缓存、媒体处理与流式状态。
 - **冷恢复边界**：仅移除明确标为继承的历史前缀，普通恢复标记不再清掉子线程历史。
-- **尖括号包裹的本地链接不再被追加问号**（[#1015](https://github.com/omdsh-dev/DSH-better-sidebar/issues/1015)；贡献者 PR [#1067](https://github.com/omdsh-dev/DSH-better-sidebar/pull/1067)）：行内链接 `[t](<../../../docs/notes/a.md>)` 的尖括号此前被当成 destination 的一部分，改写后变成 `[t](<./a.md>?)`，预览里不再是链接。现在先剥掉尖括号、按内部路径判定，再原样重新包裹；带空格 / 括号的 destination 一并纳入（Windows 反斜杠与标题片段一起归一）。`tests/markdown-navigation.spec.ts` 守护。
-- **侧边对话里的本地源码链接可点开**（贡献者 PR [#1074](https://github.com/omdsh-dev/DSH-better-sidebar/pull/1074)）：Side Chat 转录里的 `[source](<E:/Code/project/Foo.java:37>)` 此前按字面量显示、或只能打开 Markdown；现在渲染成文件按钮并在编辑器里打开到第 37 行（`:line`、`:line:column`、`#L24` 行号都认）。新增的 `allLocalFiles` 只对 prose surface 生效，文档预览仍只认 Markdown。
 - **贡献**：感谢 [@sunxiuguo](https://github.com/sunxiuguo) 的配套实现（[#1033](https://github.com/omdsh-dev/DSH-better-sidebar/pull/1033)）；保留原始贡献提交，并整合最新 dev 与 0.28.2 的冷会话读取修复。
-- 🐞 **「侧边卡片」不再给程序化类型发假开关**（[#1009](https://github.com/omdsh-dev/DSH-better-sidebar/issues/1009)）：`hidden: true` 的 tab 类型（内置的 diff 页、dsh-remote 的 `dsh-remote:file`）本就没有 `+` 菜单行和原生 guide 条目，设置页却照注册表给它发了一张卡片——点掉后侧边栏毫无变化，唯一实际效果是 `openTab` 静默拒绝它的打开（差异预览的「展开为独立页签」、远程文件打开随之失效），同一现象也被 dsh-remote 侧报告为「开关无效」。现在清单只列真正出现在侧边栏的类型，`isTabEnabled()` 对 hidden 类型恒为 true（旧版本写下的 `tabsEnabled[id] = false` 不再拦截它们的打开）。`tests/side-card-section.spec.tsx` + `tests/service.spec.ts` 各新增一例守护。
 
 ### v0.28.2
 
@@ -34,7 +35,6 @@
   - 代价：会话 attach 之前，侧边栏根是原始项目目录而非 agent 最后所在的子目录 / worktree；attach 后下一次 5 s 轮询切回。
   - 📏 **实测（40,157,518 字节会话，本机重建）**：12 个 `session.cwd` + 36 个绕过入口调用并发 → **1 次 header 读、0 次整读、3 ms、RSS +0.3 MB**；同产物用修复前代码（`43db17f`）跑 6 个绕过入口并发 → 6 次整读、峰值 RSS +1002 MB（外推 36 次 ≈ 6.0 GB，与事故 6.2 GB 峰值吻合）。单次整读成本 467 ms / +501.6 MB。方法与边界见[记录](docs/plans/2026-10-27-workspace-cwd-over-cold-reads.md) §5.2。
   - 🧪 测试：`tests/smoke.spec.ts` 重写该组 8 例（header 优先于陈旧提示、header 只读一次、12 并发共享一次 header 读、无 `stat`/`stat` 失败回落客户端提示、live committed 优先、相对 cwd 拒绝为 `bad-request`、`defaultDirectory` 与进程 cwd 兜底）。机制与取舍见 [记录](docs/plans/2026-10-27-workspace-cwd-over-cold-reads.md)。
-
 
 ### v0.28.1
 
