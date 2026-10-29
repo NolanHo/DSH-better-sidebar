@@ -2,6 +2,11 @@
 
 > 本文档收录 dsh-better-sidebar 的完整发布历史（最新版摘要见 [README](README_ZH.md)；同步发布于 [GitHub Releases](https://github.com/omdsh-dev/DSH-better-sidebar/releases)）。
 
+### Unreleased
+
+- 🪟 **Windows + WSL 工作区：UNC 路径不再被折叠成盘符相对路径**：`resolveAddressPath` 在 Windows 基址下重排分隔符时把每段连续 `\` 折成一个，`\\wsl.localhost\<distro>\...` 的 UNC 前缀也因此被折成 `\wsl.localhost\...`；宿主随后用 `path.resolve()` 把它锚定到自己的当前盘（`C:\wsl.localhost\...`），侧边栏打开 WSL 工作区里任何文件都报 `ENOENT`。现在 UNC 前缀原样保留、只折叠其后的部分（盘符路径行为不变）。
+  - 🧪 测试：`tests/worktree-address.spec.ts` 新增 1 例（UNC 绝对路径、工作区相对路径、正斜杠写法都保持双前导分隔符）。
+
 ### v0.29.0
 
 - **侧边对话接入 GenUI**：通过现有 `ctx.betterSidebar` 服务新增可选的 `registerSidechatSurfaceAdapter`，支持 GenUI 0.15.0 渲染已结算的助手回复；未注册消费方时保持原 Markdown。

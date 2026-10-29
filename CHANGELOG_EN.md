@@ -4,6 +4,11 @@
 >
 > 📝 The Chinese [CHANGELOG](./CHANGELOG.md) is the authoritative, item-by-item record; this file carries the English summaries and has historically lagged behind it. Where the two disagree, the Chinese one is current.
 
+### Unreleased
+
+- 🪟 **Windows + WSL workspaces: a UNC path is no longer folded into a drive-relative one.** Re-spelling paths on a Windows base folded every run of separators into one `\`, which also folded the UNC prefix of `\\wsl.localhost\<distro>\...` into `\wsl.localhost\...`; the host's `path.resolve()` then anchored that on its own process drive (`C:\wsl.localhost\...`), so every file opened from a WSL workspace failed with ENOENT. The UNC prefix now survives and only the rest is folded (drive paths are unchanged).
+  - 🧪 `tests/worktree-address.spec.ts` adds one case: UNC absolute, workspace-relative, and forward-slash spellings all keep the two leading separators.
+
 ### v0.29.0
 
 - **GenUI in side chats**: the existing `ctx.betterSidebar` service exposes the opt-in `registerSidechatSurfaceAdapter` for GenUI 0.15.0 to render settled assistant replies. Without a consumer, Markdown rendering stays unchanged.
