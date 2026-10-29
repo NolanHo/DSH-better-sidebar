@@ -413,6 +413,7 @@ export const sv: Record<string, string> = {
   sideChatSaveTitle: 'Höj denna tråd till en toppnivå-session i huvudsessionslistan',
   sideChatArchive: 'Arkivera den här sidkonversationen (hitta den igen via ”Visa arkiverade” i sessionslistan)',
   sideChatArchiveRunning: 'Den här tråden körs — stoppa den innan du arkiverar',
+  sideChatArchiveBlocked: 'En sidokonversation går aldrig att hitta igen efter arkivering (värdens sessionslista döljer sidokonversationer i alla filter), därför är arkivering inaktiverad — använd "Spara som ny session" först för att behålla den',
   sideChatSaved: 'Sparad som ny session',
   sideChatNoTurn: 'Spara är tillgängligt efter den första slutförda vändan',
   sideChatPendingDrop: 'Den senaste obesvarade följdfrågan inkluderas inte i den sparade sessionen',

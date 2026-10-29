@@ -428,6 +428,7 @@ export const nl: Record<string, string> = {
   sideChatSaveTitle: 'Promoveer deze thread naar een top-level sessie in de hoofd-sessielijst',
   sideChatArchive: 'Dit zijgesprek archiveren (terug te vinden via “Gearchiveerd tonen” in de sessielijst)',
   sideChatArchiveRunning: 'Deze thread draait — stop hem voordat je archiveert',
+  sideChatArchiveBlocked: 'Een zijgesprek is na archivering nooit meer terug te vinden (de sessielijst van de host verbergt zijgesprekken in elk filter), daarom is archiveren uitgeschakeld — gebruik eerst "Opslaan als nieuwe sessie" om het te bewaren',
   sideChatSaved: 'Opgeslagen als een nieuwe sessie',
   sideChatNoTurn: 'Opslaan is pas beschikbaar na de eerste voltooide beurt',
   sideChatPendingDrop: 'De laatste onbeantwoorde follow-up wordt niet meegenomen in de opgeslagen sessie',

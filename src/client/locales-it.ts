@@ -421,6 +421,7 @@ export const it: Record<string, string> = {
   sideChatSaveTitle: 'Promuove questa conversazione a sessione di primo livello nella lista delle sessioni principali',
   sideChatArchive: 'Archivia questa conversazione laterale (la ritrovi con «Mostra archiviate» nell’elenco delle sessioni)',
   sideChatArchiveRunning: 'Questa conversazione è in esecuzione — interrompila prima di archiviarla',
+  sideChatArchiveBlocked: 'Una conversazione laterale non può più essere ritrovata una volta archiviata (l’elenco sessioni dell’host nasconde le conversazioni laterali in ogni filtro), quindi l’archiviazione è disattivata — usa prima «Salva come nuova sessione» per conservarla',
   sideChatSaved: 'Salvata come nuova sessione',
   sideChatNoTurn: 'Il salvataggio è disponibile dopo il primo turno completato',
   sideChatPendingDrop: 'L’ultima domanda di follow-up senza risposta non sarà inclusa nella sessione salvata',

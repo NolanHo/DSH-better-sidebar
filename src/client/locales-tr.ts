@@ -430,6 +430,7 @@ export const tr: Record<string, string> = {
   sideChatSaveTitle: 'Bu iş parçacığını ana oturum listesinde üst düzey oturuma yükselt',
   sideChatArchive: 'Bu yan sohbeti arşivle (oturum listesindeki “Arşivlenenleri göster” ile tekrar bulabilirsiniz)',
   sideChatArchiveRunning: 'Bu iş parçacığı çalışıyor — arşivlemeden önce durdurun',
+  sideChatArchiveBlocked: 'Yan sohbet arşivlendikten sonra oturum listesinde bir daha bulunamaz (ana oturum listesi tüm filtrelerde yan sohbetleri gizler), bu nedenle arşivleme devre dışı — saklamak için önce "Yeni oturum olarak kaydet"i kullanın',
   sideChatSaved: 'Yeni oturum olarak kaydedildi',
   sideChatNoTurn: 'Kaydetme ilk tamamlanan turdan sonra kullanılabilir',
   sideChatPendingDrop: 'Son yanıtlanmamış devam sorusu kaydedilen oturuma dahil edilmez',
