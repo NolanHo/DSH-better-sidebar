@@ -26,6 +26,7 @@
 - **尖括号包裹的本地链接不再被追加问号**（[#1015](https://github.com/omdsh-dev/DSH-better-sidebar/issues/1015)；贡献者 PR [#1067](https://github.com/omdsh-dev/DSH-better-sidebar/pull/1067)）：行内链接 `[t](<../../../docs/notes/a.md>)` 的尖括号此前被当成 destination 的一部分，改写后变成 `[t](<./a.md>?)`，预览里不再是链接。现在先剥掉尖括号、按内部路径判定，再原样重新包裹；带空格 / 括号的 destination 一并纳入（Windows 反斜杠与标题片段一起归一）。`tests/markdown-navigation.spec.ts` 守护。
 - **侧边对话里的本地源码链接可点开**（贡献者 PR [#1074](https://github.com/omdsh-dev/DSH-better-sidebar/pull/1074)）：Side Chat 转录里的 `[source](<E:/Code/project/Foo.java:37>)` 此前按字面量显示、或只能打开 Markdown；现在渲染成文件按钮并在编辑器里打开到第 37 行（`:line`、`:line:column`、`#L24` 行号都认）。新增的 `allLocalFiles` 只对 prose surface 生效，文档预览仍只认 Markdown。
 - **贡献**：感谢 [@sunxiuguo](https://github.com/sunxiuguo) 的配套实现（[#1033](https://github.com/omdsh-dev/DSH-better-sidebar/pull/1033)）；保留原始贡献提交，并整合最新 dev 与 0.28.2 的冷会话读取修复。
+- 🐞 **「侧边卡片」不再给程序化类型发假开关**（[#1009](https://github.com/omdsh-dev/DSH-better-sidebar/issues/1009)）：`hidden: true` 的 tab 类型（内置的 diff 页、dsh-remote 的 `dsh-remote:file`）本就没有 `+` 菜单行和原生 guide 条目，设置页却照注册表给它发了一张卡片——点掉后侧边栏毫无变化，唯一实际效果是 `openTab` 静默拒绝它的打开（差异预览的「展开为独立页签」、远程文件打开随之失效），同一现象也被 dsh-remote 侧报告为「开关无效」。现在清单只列真正出现在侧边栏的类型，`isTabEnabled()` 对 hidden 类型恒为 true（旧版本写下的 `tabsEnabled[id] = false` 不再拦截它们的打开）。`tests/side-card-section.spec.tsx` + `tests/service.spec.ts` 各新增一例守护。
 
 ### v0.28.2
 

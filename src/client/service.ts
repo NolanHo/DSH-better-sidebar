@@ -676,6 +676,13 @@ export interface BetterSidebarService {
    * `tabsEnabled[id]` entry means enabled — only an explicit `false`
    * disables the type (hidden from the + menu, `openTab` refuses, and
    * derived flows gate on it).
+   *
+   * A `hidden: true` type is ALWAYS enabled: it has no + menu row and no
+   * native guide entry, so the side-card inventory offers no switch for it —
+   * and none of the paths that open it (a diff's "expand to page", a remote
+   * plugin's file open) has a visible state the user could read. The entry is
+   * ignored rather than honoured so a value written by an older build cannot
+   * keep silently refusing those opens (#1009).
    */
   isTabEnabled(id: string): boolean
   /** Whether a file viewer is enabled (absent `viewersEnabled[id]` = enabled). */
@@ -1067,8 +1074,12 @@ export function createBetterSidebarService(store: SidebarStore): BetterSidebarSe
   }
 
   // The enable switches come from the user's side card prefs (the shared
-  // store the service is bound to): an absent key means enabled.
-  const isTabEnabled = (id: string): boolean => store.getPrefs().tabsEnabled[id] !== false
+  // store the service is bound to): an absent key means enabled. A hidden
+  // type is exempt — it has no side-card card (SideCardSection skips it), so
+  // its prefs entry can only be a leftover from an older build and must not
+  // keep refusing the programmatic opens it exists for (#1009).
+  const isTabEnabled = (id: string): boolean =>
+    tabs.get(id)?.hidden === true || store.getPrefs().tabsEnabled[id] !== false
   const isViewerEnabled = (id: string): boolean => store.getPrefs().viewersEnabled[id] !== false
 
   const matchFileViewer = (path: string, head?: Uint8Array): FileViewerDescriptor | undefined => {
