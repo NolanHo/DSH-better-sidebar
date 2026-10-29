@@ -1473,8 +1473,33 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
       const value = viewOf().value
       return value !== null && typeof value === 'object' ? value as SidebarPrefs : SIDEBAR_PREFS_DEFAULTS
     }
+    /**
+     * The live `agentOpenTools` switch, or `undefined` when the form cannot be
+     * read right now. The host's settings service only lists entries whose
+     * fiber is ACTIVE, so a row missing from `describe()` is a NORMAL state
+     * during (re)mount and live-commit windows; a thrown read is the same
+     * unknown. `prefsOf()` maps that absence to the schema default (`false`),
+     * which is right for consumers but WRONG for this gate: it would read
+     * "unknown" as "the user turned the tool off" and unregister a live tool
+     * mid-session (issue #951). Only an explicit boolean is a user decision.
+     */
+    const openToolsSetting = (): boolean | undefined => {
+      let value: unknown
+      try {
+        value = viewOf().value
+      } catch {
+        return undefined
+      }
+      if (value === null || typeof value !== 'object') return undefined
+      const flag = (value as { agentOpenTools?: unknown }).agentOpenTools
+      return typeof flag === 'boolean' ? flag : undefined
+    }
     const syncOpenToolsGate = (): void => {
-      if (prefsOf().agentOpenTools === true) {
+      const enabled = openToolsSetting()
+      // Unknown (absent row / failed read) keeps the current registration.
+      // Explicit false unregisters once: the null guard also makes repeated
+      // syncs idempotent (no double-registration, no second disposal).
+      if (enabled === true) {
         if (openToolsDisposers === null) {
           openToolsDisposers = registerOpenTool(
             ctx,
@@ -1483,7 +1508,7 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
             prefsOf,
           )
         }
-      } else if (openToolsDisposers !== null) {
+      } else if (enabled === false && openToolsDisposers !== null) {
         openToolsDisposers()
         openToolsDisposers = null
         agentOpenRegistry.drainAll()
@@ -1499,6 +1524,9 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
       externalDisable,
       update: async (patch, expectedRevision) => {
         await sctx.settings.update(ns, patch, expectedRevision)
+        // The write IS the user's decision landing; re-read now instead of
+        // waiting for some later `settings.get` to happen to run (issue #951).
+        syncOpenToolsGate()
         return viewOf()
       },
     }
@@ -1512,9 +1540,15 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
     // row is not in the form list yet and the import would silently find
     // "no form" and do nothing. Upstream's own settings migration waits the
     // same way (`ctx.root.loader.await().then(...)`).
-    void Promise.resolve(ctx.loader?.await?.()).then(
-      () => importLegacyPrefs(ctx, sctx.settings, ns),
-    ).then((outcome) => {
+    void Promise.resolve(ctx.loader?.await?.()).then(async () => {
+      // The row is addressable only after the loader mounts it, so the
+      // injection-time sync above ran before the user's value could be read
+      // (issue #951: the first turn after a restart missed the tool). Re-read
+      // AFTER the import too: the imported section may carry this very switch.
+      const outcome = await importLegacyPrefs(ctx, sctx.settings, ns)
+      syncOpenToolsGate()
+      return outcome
+    }).then((outcome) => {
       if (outcome === 'no-profile-home' || outcome === 'no-form') {
         ctx.logger.warn('dsh-better-sidebar: legacy preference import could not run (%s)', outcome)
         return
