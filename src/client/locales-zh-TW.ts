@@ -173,6 +173,7 @@ export const zhTW: Record<string, string> = {
   showInFolder: '在資料夾中顯示',
   refreshUnsavedConfirm: '檔案已在磁碟上變更。重新整理會丟失尚未儲存的編輯。繼續？',
   closeUnsavedConfirm: '此檔案有未儲存的編輯，關閉後將被丟棄。繼續嗎？',
+  switchUnsavedConfirm: '此檔案有未儲存的編輯，切換檔案將丟棄這些內容。繼續嗎？',
   save: '儲存',
   saved: '已儲存',
   unsaved: '未儲存',
