@@ -14,7 +14,8 @@
  * `maxRetries` + `retryDelay` is Node's own remedy for exactly this, so every
  * risky cleanup goes through here instead of repeating the retry inline.
  * The same archive cleanup flaked again on 2026-10-28 under a loaded runner,
- * so the budget now covers a slower handle release than the original 10×50 ms.
+ * so the budget now covers a slower handle release than the original 10×50 ms;
+ * the Windows lane still hit it once on 2026-10-29, hence the 6 s budget.
  * POSIX runs are unaffected: the first attempt succeeds and no retry happens.
  */
 import { rmSync } from 'node:fs'
@@ -25,5 +26,5 @@ import { rmSync } from 'node:fs'
  * @param path - file or directory to remove (missing paths are ignored).
  */
 export function removeTree(path: string): void {
-  rmSync(path, { recursive: true, force: true, maxRetries: 30, retryDelay: 100 })
+  rmSync(path, { recursive: true, force: true, maxRetries: 60, retryDelay: 100 })
 }
