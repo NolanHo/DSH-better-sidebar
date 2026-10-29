@@ -77,6 +77,8 @@
 
 - Windows / macOS 桌面壳（Electron 外壳）、Tauri/WebKit 路径。
 - 真机移动端。
+- 任务页 / 侧边对话在**有真实 job / 模型回复**时的渲染：keyless lane 里只有空状态（接口耗时已单独记录）。
+- 设置页 UI（宿主设置对话框 + 插件的侧边卡片分组）：只测了 `settings.get`；插件在该页只挂一个导航图标与一组卡片。
 - 长时间运行的内存曲线：`performance.memory` 在 Chromium 中被量化（多轮恒为 45 MB），不能作为泄漏证据，需要 CDP heap snapshot，本轮未做。
 - 多用户/远程（`dsh-remote`）场景的网络延迟。
 
