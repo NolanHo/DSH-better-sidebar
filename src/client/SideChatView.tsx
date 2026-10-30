@@ -64,7 +64,7 @@ import {
   type TerminalBlockLabels,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { markdownTextProps } from './markdown-labels.tsx'
-import { COMPOSITION_END_GRACE_MS, isSubmitGesture } from './composer-keymap.ts'
+import { COMPOSITION_END_GRACE_MS, compositionPhase, isSubmitGesture } from './composer-keymap.ts'
 import { SidechatAssistantRow, type SidechatRowSurfaceBinding } from './SidechatAssistantRow.tsx'
 import { rewriteProseLocalImageUrls } from './markdown-images.ts'
 import { hostTransportBase } from './desktop-env.ts'
@@ -1588,22 +1588,35 @@ export function SideChatView(props: {
             // composer-keymap.ts; the legacy signals only exist on the native
             // event.
             const native = event.nativeEvent
-            const submits = isSubmitGesture(
-              {
-                key: event.key,
-                shiftKey: event.shiftKey,
-                metaKey: event.metaKey,
-                ctrlKey: event.ctrlKey,
-                isComposing: native.isComposing,
-                keyCode: native.keyCode,
-              },
+            const gesture = {
+              key: event.key,
+              shiftKey: event.shiftKey,
+              metaKey: event.metaKey,
+              ctrlKey: event.ctrlKey,
+              isComposing: native.isComposing,
+              keyCode: native.keyCode,
+            }
+            if (isSubmitGesture(
+              gesture,
               submitKey,
               composingRef.current,
               composingUntilRef.current,
-            )
-            if (!submits) return
-            event.preventDefault()
-            void handleSend()
+            )) {
+              event.preventDefault()
+              void handleSend()
+              return
+            }
+            // Safari delivers the composition-closing Enter AFTER
+            // `compositionend`, i.e. with no composition flag: the guard
+            // already refused to submit, and the textarea would now insert a
+            // line break on its own. The host's composer "neither submits nor
+            // breaks the line" for that key, so consume it. A LIVE composition
+            // key is left untouched (the IME owns it), and Shift+Enter keeps
+            // its native newline in every state.
+            const phase = compositionPhase(gesture, composingRef.current, composingUntilRef.current)
+            if (phase === 'closing' && gesture.key === 'Enter' && !gesture.shiftKey) {
+              event.preventDefault()
+            }
           }}
         />
         <div className={css.sidechatComposerBar}>

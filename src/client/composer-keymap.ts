@@ -26,9 +26,13 @@
  *
  * The decisions are pure functions taking the clock as a parameter, so the
  * behavior is pinned without a DOM:
- * {@link isComposingKeydown} / {@link isSubmitGesture}. The vocabulary (the
- * modes and their parser) lives with the other preference vocabulary in
- * `prefs-shared.ts`, because the stored value is a preference.
+ * {@link compositionPhase} / {@link isComposingKeydown} / {@link isSubmitGesture}.
+ * The vocabulary (the modes and their parser) lives with the other preference
+ * vocabulary in `prefs-shared.ts`, because the stored value is a preference.
+ *
+ * Consumption is part of the contract, not just "don't submit": a keydown in
+ * the composition-CLOSING window is swallowed (no submit, no newline) while a
+ * LIVE composition key is left untouched so the candidate picker keeps it.
  */
 import type { SidechatSubmitKey } from '../prefs-shared.ts'
 
@@ -50,15 +54,54 @@ export interface ComposerKeyEvent {
 }
 
 /**
- * Whether this keydown belongs to an IME composition and must therefore be
- * left entirely to the input method.
+ * How one keydown relates to an IME composition:
+ *
+ * - `'active'` — the composition is live, or the engine flags the key as its
+ *   own (legacy 229). The key belongs to the input method: never submit and
+ *   never consume it (`preventDefault()` there fights the candidate picker).
+ * - `'closing'` — no composition is live and the event carries no flag, but
+ *   `compositionend` fired inside the grace window. This is Safari's late
+ *   composition-closing keydown: it must be CONSUMED (the host's composer
+ *   "neither submits nor breaks the line"), because letting it through inserts
+ *   a newline the user never asked for.
+ * - `'none'` — an ordinary keydown.
+ */
+export type CompositionPhase = 'none' | 'active' | 'closing'
+
+/**
+ * Classify one keydown against the composition window.
  * @param event - the keydown's fields.
  * @param composing - whether a composition is LIVE right now (tracked from
  *   `compositionstart` / `compositionend`; some engines only signal it there).
  * @param composingUntil - the deadline of the composition-end grace window
  *   (`Date.now()` basis, 0 when no composition ever ended).
  * @param now - the current time (injectable for deterministic tests).
- * @returns true while a composition owns the keyboard.
+ * @returns the keydown's composition phase.
+ */
+export function compositionPhase(
+  event: ComposerKeyEvent,
+  composing: boolean,
+  composingUntil: number,
+  now: number = Date.now(),
+): CompositionPhase {
+  if (event.isComposing === true || composing) return 'active'
+  // The legacy signal counts as ACTIVE, never as 'closing': engines emit 229
+  // without the flag while an IME owns the key, and layout-switcher utilities
+  // emit bare 229s outside any composition — a key this guard cannot place is
+  // left to the browser instead of being consumed.
+  // oxlint-disable-next-line typescript/no-deprecated
+  if (event.keyCode === 229) return 'active'
+  return now < composingUntil ? 'closing' : 'none'
+}
+
+/**
+ * Whether this keydown belongs to an IME composition and must therefore be
+ * left unsubmitted.
+ * @param event - the keydown's fields.
+ * @param composing - whether a composition is LIVE right now.
+ * @param composingUntil - the deadline of the composition-end grace window.
+ * @param now - the current time (injectable for deterministic tests).
+ * @returns true while a composition owns the keyboard (active or closing).
  */
 export function isComposingKeydown(
   event: ComposerKeyEvent,
@@ -66,12 +109,7 @@ export function isComposingKeydown(
   composingUntil: number,
   now: number = Date.now(),
 ): boolean {
-  if (event.isComposing === true) return true
-  // keyCode 229 is the legacy signal engines emit without isComposing.
-  // oxlint-disable-next-line typescript/no-deprecated
-  if (event.keyCode === 229) return true
-  if (composing) return true
-  return now < composingUntil
+  return compositionPhase(event, composing, composingUntil, now) !== 'none'
 }
 
 /**
