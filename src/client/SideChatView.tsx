@@ -1216,6 +1216,36 @@ export function SideChatView(props: {
     setFollowingTail(true)
   }
 
+  /** The content height captured when the reader asked for more history (see
+   *  {@link revealEarlier}): the layout effect below corrects the scroll offset
+   *  by the height the commit added ABOVE the viewport. */
+  const revealAnchorRef = useRef<number | null>(null)
+
+  /** Mount one more step of hidden history, keeping the reader's line in place. */
+  const revealEarlier = (): void => {
+    revealAnchorRef.current = scrollRef.current?.scrollHeight ?? null
+    setRevealedRows(value => value + TRANSCRIPT_REVEAL_STEP)
+  }
+
+  // The rows a reveal mounts sit ABOVE the viewport, so the browser keeps
+  // `scrollTop` while the content above grows and the line the reader was
+  // reading slides down by the inserted height. Correcting the offset by the
+  // height DELTA after the commit is what holds that line still; a reader who
+  // is following the tail is instead pinned to the bottom offset of the NEW
+  // geometry, so they stay at the newest content rather than trailing behind.
+  useLayoutEffect(() => {
+    const before = revealAnchorRef.current
+    if (before === null) return
+    revealAnchorRef.current = null
+    const scroller = scrollRef.current
+    if (scroller === null) return
+    if (followingTail) {
+      scroller.scrollTop = scroller.scrollHeight - scroller.clientHeight
+      return
+    }
+    scroller.scrollTop += scroller.scrollHeight - before
+  }, [revealedRows, followingTail])
+
   /** Open a NEW thread tab: the thread is created FIRST and parked for the
    *  descriptor's createTab, so the tab that opens is already bound to it —
    *  the pane never sits on the empty hero while a thread is being created,
@@ -1581,12 +1611,18 @@ export function SideChatView(props: {
           onReconnect={() => { ctx.connection?.reconnect() }}
         />
       )}
-      <div
-        ref={transcriptRef}
-        className={css.sidechatScroll}
-        data-genui-surface="dsh-better-sidebar/sidechat"
-        onScroll={handleTranscriptScroll}
-      >
+      {/* The transcript box: the scroller PLUS the floating controls that must
+          not scroll with it. It is the positioning context for the
+          back-to-latest pill, so the pill is anchored to the edge of the
+          transcript (never to a magic offset), and the composer stays a sibling
+          below — the pill can never cover the input. */}
+      <div className={css.sidechatTranscript}>
+        <div
+          ref={transcriptRef}
+          className={css.sidechatScroll}
+          data-genui-surface="dsh-better-sidebar/sidechat"
+          onScroll={handleTranscriptScroll}
+        >
         {/* The hidden head of the thread: the spacer holds the scroll space the
             unmounted rows used to occupy (their DECLARED height — jsdom has no
             layout, and a revealed row gives back exactly the height it frees),
@@ -1605,7 +1641,7 @@ export function SideChatView(props: {
               type="button"
               className={css.sidechatRevealEarlier}
               data-sidechat-reveal-earlier=""
-              onClick={() => { setRevealedRows(value => value + TRANSCRIPT_REVEAL_STEP) }}
+              onClick={revealEarlier}
             >
               {t('sideChatRevealEarlier', { hidden: hiddenRowCount })}
             </button>
@@ -1652,20 +1688,24 @@ export function SideChatView(props: {
             </div>
           )}
         </MarkdownDelegateProvider>
+        </div>
+        {/* Only while the reader is AWAY from the tail: one tap returns to the
+            newest content and resumes following. It is not rendered at the tail
+            (nothing to return to). The slot is zero-height, so it never takes
+            space from the transcript. */}
+        {!followingTail && (
+          <div className={css.sidechatToLatestSlot}>
+            <button
+              type="button"
+              className={css.sidechatToLatest}
+              data-sidechat-to-bottom=""
+              onClick={returnToLatest}
+            >
+              {t('sideChatToLatest')}
+            </button>
+          </div>
+        )}
       </div>
-      {/* Only while the reader is AWAY from the tail: one tap returns to the
-          newest content and resumes following. It is not rendered at the tail
-          (nothing to return to), so it never covers a settled transcript. */}
-      {!followingTail && (
-        <button
-          type="button"
-          className={css.sidechatToLatest}
-          data-sidechat-to-bottom=""
-          onClick={returnToLatest}
-        >
-          {t('sideChatToLatest')}
-        </button>
-      )}
       {showThinking && (
         <div className={css.sidechatStatus}>
           <StateDot state="ongoing" size={8} />
@@ -1749,9 +1789,8 @@ export function SideChatView(props: {
             // already refused to submit, and the textarea would now insert a
             // line break on its own. The host's composer "neither submits nor
             // breaks the line" for that key, so consume it. A LIVE composition
-            // key is left untouched (the IME owns it), and Shift+Enter keeps
-            // its native newline in every state.
-            const phase = compositionPhase(gesture, composingRef.current, composingUntilRef.current)
+            // key is left untouched (the IME owns it — that case returned
+            // above), and Shift+Enter keeps its native newline in every state.
             if (phase === 'closing' && !gesture.shiftKey) {
               event.preventDefault()
             }

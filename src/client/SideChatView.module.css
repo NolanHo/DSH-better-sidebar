@@ -15,8 +15,6 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  /* Positioning context for the floating "back to latest" pill. */
-  position: relative;
 }
 
 /* ── composer-bar controls (model picker · thread menu · save · archive):
@@ -114,7 +112,7 @@
   border-radius: 999px;
   background: var(--dsw-alias-button-info-fill, var(--dsw-alias-accent));
   color: var(--dsw-alias-button-info-label, var(--dsw-alias-accent-ink, #fff));
-  font: var(--dsw-font-s-13);
+  font: var(--dsw-font-xs-13);
   cursor: pointer;
   transition: opacity 100ms ease-out;
 }
@@ -204,7 +202,9 @@
   border-radius: 999px;
   background: var(--dsw-alias-bg-base);
   color: var(--dsw-alias-label-secondary);
-  font: var(--dsw-font-s-12);
+  /* A control's fixed step (the host's 13px/20px), not a transcript text rule:
+     it stays the same size whatever the reader's content-font setting is. */
+  font: var(--dsw-font-xs-13);
   cursor: pointer;
 }
 
@@ -213,22 +213,49 @@
   color: var(--dsw-alias-label-primary);
 }
 
-/* Return-to-latest pill: floats over the transcript's bottom edge while the
-   reader is away from the tail; the pane is the positioning context. */
-.sidechatToLatest {
+/* The transcript box: the scrollport plus the controls that float over it. It
+   is the positioning context for the back-to-latest pill, so the pill anchors
+   to the transcript edge instead of a magic offset, and the composer (a
+   sibling below) can never be covered by it. */
+.sidechatTranscript {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Zero-height slot, the host's own recipe (`ui-chat` ChatView's
+   `.toBottomSlot`): it takes no space in the flow, right-aligns its child to
+   the content column's edge, and lets the transcript keep every pixel. */
+.sidechatToLatestSlot {
   position: absolute;
-  bottom: 120px;
-  left: 50%;
-  transform: translateX(-50%);
+  right: 0;
+  bottom: 16px;
+  left: 0;
   z-index: 2;
+  height: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding-right: max(
+    calc(var(--dsh-composer-side-clearance, 16px) + 16px),
+    calc((100% - var(--dsh-chat-content-width, 720px)) / 2)
+  );
+  pointer-events: none;
+}
+
+/* Return-to-latest pill: floats over the transcript's bottom edge while the
+   reader is away from the tail. */
+.sidechatToLatest {
   padding: 4px 12px;
   border: 1px solid var(--dsw-alias-border-l2, var(--dsw-alias-border-l1));
   border-radius: 999px;
   background: var(--dsw-alias-bg-base);
   color: var(--dsw-alias-label-secondary);
-  font: var(--dsw-font-s-12);
-  box-shadow: var(--dsw-alias-shadow-l1, 0 2px 8px rgb(0 0 0 / 12%));
+  font: var(--dsw-font-xs-13);
+  box-shadow: var(--dsw-elevation-panel);
   cursor: pointer;
+  pointer-events: auto;
 }
 
 .sidechatToLatest:hover {
@@ -387,7 +414,7 @@
 }
 
 .sidechatRowMono {
-  font-family: var(--dsw-font-mono);
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
 }
 
 .sidechatRowMeta {
@@ -396,7 +423,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--dsw-font-mono);
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   color: var(--dsw-alias-label-tertiary);
 }
 
@@ -427,7 +454,7 @@
   padding: 4px 0;
   font-size: var(--dsh-content-font-size-secondary, 13px);
   line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
-  font-family: var(--dsw-font-mono);
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   color: var(--dsw-alias-label-secondary);
   white-space: pre-wrap;
   overflow-wrap: anywhere;

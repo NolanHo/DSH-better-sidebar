@@ -156,7 +156,7 @@ const UNCHANGED: Record<string, Record<string, string>> = {
  * the pill's shadow). The list is a SNAPSHOT: a new literal means someone
  * painted a colour instead of using a token, which the skin contract forbids.
  */
-const EXISTING_COLOR_LITERALS = ['#fff', '#fff', 'rgb(0 0 0 / 12%)']
+const EXISTING_COLOR_LITERALS = ['#fff', '#fff']
 
 interface CssRule {
   /** The full prelude, whitespace-folded (comma groups kept). */
@@ -366,6 +366,9 @@ describe('side chat typography: chrome follows the host content-font axis (D3)',
   it('keeps the raw tool text monospace', () => {
     const rule = ruleOf('.sidechatRowCode')
     const family = rule.declarations.get('font-family') ?? rule.declarations.get('font') ?? ''
-    expect(family, '.sidechatRowCode keeps the monospace family').toContain('var(--dsw-font-mono)')
+    // The token is named FIRST (so a host that defines it wins the cascade);
+    // the fallback stack after it is the only thing that renders today, since
+    // the host theme never defines `--dsw-font-mono`.
+    expect(family, '.sidechatRowCode keeps the monospace family').toMatch(/var\(--dsw-font-mono\b/)
   })
 })
