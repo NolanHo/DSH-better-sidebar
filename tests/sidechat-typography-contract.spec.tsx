@@ -36,7 +36,22 @@
  *    literal may appear anywhere in the sheet, and the `--dsh-content-font-*`
  *    variables may ONLY appear in `font` / `font-size` / `line-height`
  *    declarations — never in a colour, border or spacing value.
- * 4. `.sidechatRowCode` keeps its monospace family (`--dsw-font-mono`).
+ * 4. `.sidechatRowCode` (and every other monospace rule in the sheet) keeps a
+ *    monospace family in the form the host itself uses: the token FIRST and an
+ *    explicit fallback stack after it — `font-family: var(--dsw-font-mono,
+ *    ui-monospace, SFMono-Regular, Menlo, monospace)`. The host theme never
+ *    defines `--dsw-font-mono`, so a bare `var(--dsw-font-mono)` is invalid at
+ *    computed-value time and drops the whole declaration (the row then renders
+ *    in the body face, not monospace). Token-first matters too: a stack whose
+ *    FIRST family is a concrete one never lets a skin's token win.
+ * 5. COLOUR. No colour literal may be added anywhere in the sheet (the only
+ *    allowed ones are the snapshot below), and every PAINT declaration — colour,
+ *    background, border, outline, shadow, fill/stroke — either resolves through
+ *    `var(...)` or is one of the inert keywords (`transparent`, `none`,
+ *    `inherit`, `currentcolor`, …). That closes the hole a literal-snapshot
+ *    alone leaves open: a named colour (`white`) or a modern function
+ *    (`oklch(…)`) is not matched by a hex/rgb/hsl pattern but is still a paint
+ *    of the plugin's own.
  *
  * CHROME (secondary axis)
  *   .sidechatRowLine          tool / thinking / injection summary line
@@ -152,11 +167,57 @@ const UNCHANGED: Record<string, Record<string, string>> = {
 }
 
 /**
- * Colour literals that already exist in the sheet (fallbacks inside `var()` and
- * the pill's shadow). The list is a SNAPSHOT: a new literal means someone
- * painted a colour instead of using a token, which the skin contract forbids.
+ * The colour literals this sheet is allowed to contain — EFFECTIVE WHITELIST:
+ * exactly two `#fff` tokens, both as the last resort fallback of the two
+ * `--dsw-alias-accent-ink` chains (`.sidechatPrimaryBtn`, `.sidechatSendBtn`).
+ *
+ * The list is a SNAPSHOT, so it only ever shrinks: when a literal stops existing
+ * (the floating pill's `rgb(0 0 0 / 12%)` shadow fallback became a host shadow
+ * token), its entry is removed, and re-introducing that exact literal then
+ * fails. Keeping a stale entry would silently legalise it again.
  */
 const EXISTING_COLOR_LITERALS = ['#fff', '#fff']
+
+/**
+ * Paint properties: a value here is visible ink, so it must be a token (or an
+ * inert keyword). This is what catches the literal shapes the snapshot regex
+ * cannot see — `white`, `oklch(…)`, `color(display-p3 …)`.
+ */
+const PAINT_PROPERTIES = [
+  'color',
+  'background',
+  'background-color',
+  'background-image',
+  'border',
+  'border-top',
+  'border-right',
+  'border-bottom',
+  'border-left',
+  'border-color',
+  'border-top-color',
+  'border-right-color',
+  'border-bottom-color',
+  'border-left-color',
+  'outline',
+  'outline-color',
+  'box-shadow',
+  'text-decoration-color',
+  'caret-color',
+  'fill',
+  'stroke',
+  'scrollbar-color',
+]
+
+/** Values that paint nothing of their own. */
+const INERT_PAINT = /^(?:none|normal|inherit|initial|unset|revert|transparent|currentcolor|auto|0)$/i
+
+/**
+ * The monospace family shape this contract requires: the token first, then a
+ * NON-EMPTY fallback stack. `var(--dsw-font-mono, )` is as broken as a bare
+ * `var(--dsw-font-mono)` — an empty fallback is guaranteed-invalid, so the whole
+ * declaration is dropped and the row renders in the inherited face.
+ */
+const MONO_STACK = /^var\(\s*--dsw-font-mono\s*,\s*[a-z"']/i
 
 interface CssRule {
   /** The full prelude, whitespace-folded (comma groups kept). */
@@ -328,6 +389,24 @@ describe('side chat typography: chrome follows the host content-font axis (D3)',
     }
   })
 
+  it('paints nothing that is not a token or an inert keyword', () => {
+    let scanned = 0
+    for (const rule of rules) {
+      for (const property of PAINT_PROPERTIES) {
+        const value = rule.declarations.get(property)
+        if (value === undefined) continue
+        if (INERT_PAINT.test(value)) continue
+        scanned += 1
+        expect(
+          value.includes('var('),
+          `${rule.selector}: ${property}: ${value} paints from a literal instead of a token`,
+        ).toBe(true)
+      }
+    }
+    // Guard the scan: the sheet really does paint.
+    expect(scanned, 'no tokenised paint declaration found').toBeGreaterThan(10)
+  })
+
   it('keeps every colour, spacing and bubble-geometry declaration where it was', () => {
     for (const [selector, guards] of Object.entries(UNCHANGED)) {
       const rule = ruleOf(selector)
@@ -363,12 +442,42 @@ describe('side chat typography: chrome follows the host content-font axis (D3)',
     expect(axisUses, 'no content-font variable is used at all').toBeGreaterThan(CHROME.length + BODY.length - 1)
   })
 
-  it('keeps the raw tool text monospace', () => {
-    const rule = ruleOf('.sidechatRowCode')
-    const family = rule.declarations.get('font-family') ?? rule.declarations.get('font') ?? ''
-    // The token is named FIRST (so a host that defines it wins the cascade);
-    // the fallback stack after it is the only thing that renders today, since
-    // the host theme never defines `--dsw-font-mono`.
-    expect(family, '.sidechatRowCode keeps the monospace family').toMatch(/var\(--dsw-font-mono\b/)
+  it('keeps the raw tool text monospace, with the token first and a real fallback', () => {
+    const family = ruleOf('.sidechatRowCode').declarations.get('font-family') ?? ''
+    expect(
+      family,
+      '.sidechatRowCode must be `var(--dsw-font-mono, <fallback stack>)`: the token first, a fallback list after it',
+    ).toMatch(MONO_STACK)
+    // A single concrete family (no token) also satisfies "monospace", but it drops
+    // the skin's own choice — the assertion above is deliberately stricter.
+    expect(family, 'the fallback names a monospace family').toMatch(/ui-monospace|SFMono|Menlo|monospace/)
+  })
+
+  it('never leaves a monospace family on a bare, undefined token', () => {
+    // The host defines no `--dsw-font-mono`: a bare var() there is invalid at
+    // computed-value time, and a fallback-first stack makes the token useless.
+    let monospaceDeclarations = 0
+    for (const rule of rules) {
+      for (const property of ['font-family', 'font']) {
+        const value = rule.declarations.get(property)
+        if (value === undefined || !value.includes('--dsw-font-mono')) continue
+        monospaceDeclarations += 1
+        if (property === 'font-family') {
+          expect(
+            value,
+            `${rule.selector}: font-family: ${value} — the token must be the FIRST family and carry a fallback`,
+          ).toMatch(MONO_STACK)
+        } else {
+          // In a `font` shorthand the family is LAST, so "token first" is not the
+          // rule there — but the token still needs its non-empty fallback stack.
+          expect(
+            value,
+            `${rule.selector}: font: ${value} — a var(--dsw-font-mono) without a fallback stack is invalid at computed-value time`,
+          ).toMatch(/var\(\s*--dsw-font-mono\s*,\s*[a-z"']/i)
+        }
+      }
+    }
+    // Guard the scan: the sheet really does declare a monospace face.
+    expect(monospaceDeclarations, 'no monospace declaration found').toBeGreaterThan(0)
   })
 })
