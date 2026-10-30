@@ -37,10 +37,11 @@ import {
   type SidebarPrefs,
 } from '../src/prefs-shared.ts'
 import { builtinTabs } from '../src/client/builtins/tabs.tsx'
-import { FeatureSettingsRows } from '../src/client/SideCardSection.tsx'
+import { FeatureSettingsRows, SettingsBody } from '../src/client/SideCardSection.tsx'
 import { t } from '../src/client/locales.ts'
 import type { Context, SidebarSessionList } from '../src/context-types.ts'
 import type { SidebarStore } from '../src/client/state.ts'
+import type { BetterSidebarService } from '../src/client/service.ts'
 
 setupReactAct()
 
@@ -135,6 +136,41 @@ describe('side-chat submit key — defaults and validation (prefs layer)', () =>
     expect(committed).toEqual(['enter'])
 
     view.unmount()
+  })
+
+  it('shows the effective default in the settings page before anything was stored', async () => {
+    // The reviewed gap: a fresh document carries no `pluginSettings.sidechat`
+    // blob, so a plugin row that reads only the blob renders its "no value"
+    // placeholder — even though the composer really sends on Enter. The row
+    // must SHOW the effective mode, and follow a stored one afterwards.
+    const anchorText = (prefs: SidebarPrefs): string => {
+      const view = renderRoot(createElement(SettingsBody, {
+        feature: sidechatDescriptor(),
+        prefs,
+        store: {} as SidebarStore,
+        service: {} as BetterSidebarService,
+        onToggle: () => {},
+        onCommit: () => '',
+        onSelectValue: () => {},
+        onPatterns: () => {},
+        onPluginToggle: () => {},
+        onPluginCommit: () => '',
+        onPluginSelectValue: () => {},
+        onPluginPatterns: () => {},
+        onPluginWrite: () => {},
+        onClose: () => {},
+      }))
+      const anchor = view.container.querySelector<HTMLButtonElement>('button[aria-haspopup="listbox"]')
+      if (anchor === null) throw new Error('the submit-key dropdown is missing')
+      const text = (anchor.textContent ?? '').trim()
+      view.unmount()
+      return text
+    }
+
+    expect(anchorText(await loadPrefs(wire({})))).toBe(t('settingsSidechatSubmitEnter'))
+    expect(anchorText(await loadPrefs(wire({
+      pluginSettings: { sidechat: { submitKey: 'mod-enter' } },
+    })))).toBe(t('settingsSidechatSubmitModEnter'))
   })
 })
 

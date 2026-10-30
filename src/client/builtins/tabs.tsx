@@ -36,7 +36,7 @@ import { LazyTerminalBottom } from '../terminal-lazy.tsx'
 import { INSTANCE_FIELD, closeBottomTerminal, webTerminals } from '../terminal-client.ts'
 import { api } from '../api.ts'
 import { sidechatSubmitKeyOf } from '../prefs.ts'
-import { SIDECHAT_SUBMIT_KEY_SETTING } from '../../prefs-shared.ts'
+import { SIDECHAT_SUBMIT_KEY_DEFAULT, SIDECHAT_SUBMIT_KEY_SETTING } from '../../prefs-shared.ts'
 import type { Context } from '../../context-types.ts'
 import type { TabComponentProps, TabDescriptor } from '../service.ts'
 
@@ -319,11 +319,14 @@ export function builtinTabs(ctx: Context): readonly TabDescriptor[] {
       // plugin-owned setting: a select row under the side-chat card's gear in
       // the Side card settings page, persisted in
       // `pluginSettings.sidechat` — the feature-scoped seam, so no host
-      // PrefsSchema field is involved. `SideChatTab` reads it live.
+      // PrefsSchema field is involved. `SideChatTab` reads it live, and
+      // `defaultValue` keeps the row honest before the first write (a fresh
+      // document has no blob, while the composer already sends on Enter).
       settings: {
         pluginToggles: [{
           key: SIDECHAT_SUBMIT_KEY_SETTING,
           type: 'select',
+          defaultValue: SIDECHAT_SUBMIT_KEY_DEFAULT,
           title: () => t('settingsSidechatSubmitKeyTitle'),
           desc: () => t('settingsSidechatSubmitKeyDesc'),
           options: [
