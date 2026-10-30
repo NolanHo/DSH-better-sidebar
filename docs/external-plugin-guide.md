@@ -1191,6 +1191,8 @@ interface SettingsDescriptor {
 
 > better-sidebar 所有视觉值消费 DSH 的 `--dsw-alias-*` / `--dsw-font-*` / `--ds-*` 令牌（无硬编码颜色），**不做每皮肤适配**。已与 dsh-web-ui 皮肤中心兼容（10 款皮肤全覆盖 `--dsw-alias-*` 层；`tests/theme.spec.ts` 守护）。你的 tab/viewer 组件遵循同样的令牌规则即可自动兼容全部皮肤。
 >
+> **文字尺寸是这条规则的延长线，不是例外**：文本的字号与行高读宿主的「内容字号」设置轴 `--dsh-content-font-size(-secondary)` / `--dsh-content-font-delta(-secondary)`（宿主 `ui-theme` 在 `body` 上定义；`--dsw-font-markdown-base-font-size` 是它对同一轴的另一种拼写）。这些 `--dsh-content-font-*` 变量**只准出现在 `font` / `font-size` / `line-height` 声明里**，绝不能拿去当颜色、边框或间距——它们是读者设置的数字，不是皮肤令牌。`tests/sidechat-typography-contract.spec.tsx` 守护这条边界。
+>
 > **没有任何豁免面**：文件与文件夹图标是 **DSH 官方的 `FileTypeIcon` 图形**（宿主自己
 > 的调色板，插件不画像素也不存数据），插件画的每个 glyph（含内置 tab 的彩色图标）颜色
 > 都来自 `--dsw-alias-*`——`tests/theme.spec.ts` 同时守护「图标模块零颜色字面量」与
@@ -1200,6 +1202,7 @@ interface SettingsDescriptor {
 
 ### 12.1 规则
 
+- **文字尺寸跟随宿主的「内容字号」**：转录正文（用户气泡、助手叙述、队列气泡）用主字号轴 `font-size: var(--dsh-content-font-size, 14px)` + `line-height: calc(22px + var(--dsh-content-font-delta, 0px))`；chrome（工具/思考行、原始工具文本、用量尾行、交付卡标题与行、提示行、错误条与失败行、队列 meta）用次级轴 `-secondary` 那一对（基准 13px / 18px）。**不再用固定 12/13/14px 的 `--dsw-font-*` 组合令牌**表达文字尺寸：那一族写死了像素与行高，读者把内容字号调大时只有 markdown 正文变大、周边 chrome 不变，层级与节奏就会散掉。`tests/sidechat-typography-contract.spec.tsx` 守护这 13 条规则（颜色/间距/气泡几何逐条快照，令牌只准出现在 type 声明里）。
 - **面板表面**：右/底面板背景 = `var(--dsw-alias-bg-layer-1)`。**绝不消费 `--dsw-specific-sidebar-fill`**（宿主左导航专属，皮肤按左导航语义覆盖它，面板消费会失去填充）。换面板表面 = 覆写 `--dsw-alias-bg-layer-1`。
 - **终端/编辑器表面**：`effectiveTokenValue` 读 `--dsw-alias-bg-base`——`transparent` 与 alpha < 0.9 的半透明值回退不透明底色（文字不叠背景画，issue #90）；≥ 0.9 放行。
 - **根锚点**：宿主 div 带 `data-dsh-better-sidebar`（append 到 body）；其内**面板宿主层** `[data-dsh-panel-host]`（`fixed; inset:0; height:100vh 兜底 + 100dvh; z-25; pointer-events:none; overflow:hidden+clip`，v0.13.1+），面板/开关簇 absolute 定位，免疫中间层 transform 劫持；页面级 transform 触发 `data-dsh-panel-host-degraded` 降级。显式高度同样**契约**（`tests/panel-host-css.spec.ts` 守护）：不得依赖包含块（`100%` / `auto`，issue #616）；`dvh` 必须排在 `vh` 之后——`vh` 取的是大视口，手机地址栏展开时该层高于布局视口，会误触发挂载自检、把宿主降级成 `absolute` 并撑高文档（issue #1014）。`overflow` 级联是**契约**（`hidden` 兜底 + `clip` 收尾，`tests/panel-host-css.spec.ts` 守护）：`hidden` 盒子仍是滚动容器，脚本滚动或浏览器 scroll-into-view 修正（焦点移入视口外区域、嵌套 iframe/工作台加载时抢焦点、面板滑出动画中 focus() 落点）会沿最近可滚祖先滚走整层——面板与开关簇集体偏离视口角（computed left/right 仍"正确"，偏移藏在盒子自身 scroll offset 里）；`clip` 裁剪语义相同但不产生滚动盒，任何路径都滚不动这层。皮肤作用域覆盖限定在 `[data-dsh-better-sidebar]` 内。

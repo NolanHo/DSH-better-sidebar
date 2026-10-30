@@ -4,6 +4,9 @@
 
 ### 未发布
 
+- 📐 **侧边对话的文字不再和正文脱节：整屏跟随宿主的「内容字号」设置**：转录正文（用户气泡 / 助手叙述 / 队列气泡）此前写死 `14px/22px`，chrome（工具与思考行、原始工具文本、用量尾行、交付卡标题与行、提示行、错误条与失败行、队列 meta）写死 `12px/18px`；读者把内容字号调大时只有 markdown 正文变大，周围这些辅助行纹丝不动，层级与节奏就散了。现在正文走主字号轴 `--dsh-content-font-size` + `--dsh-content-font-delta`，chrome 走次级轴 `--dsh-content-font-size-secondary` + `--dsh-content-font-delta-secondary`（与宿主 `MessageItem` 同一套写法），颜色 / 间距 / 气泡几何逐条不动，原始工具文本仍保留 `--dsw-font-mono`。`docs/external-plugin-guide.md` §12 同步补上这条令牌边界（`--dsh-content-font-*` 只准出现在 type 声明里）。
+  - 🧪 测试：`tests/sidechat-typography-contract.spec.tsx` 钉住 13 条规则的字号轴、固定 12/13/14px 组合令牌退役、颜色字面量与几何快照不变、以及「内容字号变量只出现在 `font`/`font-size`/`line-height`」。
+
 - 🪶 **长侧边对话只挂载尾部窗口，滚上去阅读不再被拽回底部**：转录此前一次性挂载整段历史（每张代码卡、表格、图片都在 DOM 里），且每次增长都无条件把滚动条钉到底——宿主在流式期间约每 250 ms 推一次失效，于是长线程既慢，又没法回看刚生成的内容。现在**最多挂载尾部 50 行**，未挂载的历史折成顶部 spacer（内联 px 高度，按隐藏行数线性）并配「展开更早的 {hidden} 条」按钮：每次再挂 25 行，展完按钮自动消失，任何一行都不会丢。跟随滚动改成「近底部意图」：`scrollHeight - clientHeight - scrollTop <= 24` 判跟随，跟随时只把 `scrollTop` 写到**底部偏移**（不是原始 `scrollHeight`），**不跟随时完全不写**；离开底部后出现「回到最新」浮标，点一下回到最新并恢复跟随。新增 `sideChatRevealEarlier` / `sideChatToLatest` 文案（21 份词典全覆盖）。
   - 🧪 测试：`tests/sidechat-windowed-transcript.spec.tsx`（尾窗 / spacer 线性 / 揭示步长 / 文案取自词典）与 `tests/sidechat-scroll-follow.spec.tsx`（近底部跟随、不拽回、回底控件、揭示不拽回）由 7 红转绿；`tests/sidechat-composer-typing-cost.spec.tsx` 仍保持「一次敲键 0 行重渲染」。
 

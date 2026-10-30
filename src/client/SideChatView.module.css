@@ -131,14 +131,18 @@
 .sidechatHint {
   flex: none;
   padding: 4px 12px;
-  font: var(--dsw-font-xxs-12);
+  font-size: var(--dsh-content-font-size-secondary, 13px);
+  line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
+  font-family: var(--dsw-font-family);
   color: var(--dsw-alias-label-tertiary);
 }
 
 .sidechatError {
   flex: none;
   padding: 4px 12px;
-  font: var(--dsw-font-xxs-12);
+  font-size: var(--dsh-content-font-size-secondary, 13px);
+  line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
+  font-family: var(--dsw-font-family);
   color: var(--dsw-alias-danger);
 }
 
@@ -150,7 +154,9 @@
   padding: 6px 10px;
   border: 1px solid var(--dsw-alias-danger);
   border-radius: 8px;
-  font: var(--dsw-font-xxs-12);
+  font-size: var(--dsh-content-font-size-secondary, 13px);
+  line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
+  font-family: var(--dsw-font-family);
   color: var(--dsw-alias-danger);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -236,7 +242,9 @@
   padding: 8px 14px;
   border-radius: 18px;
   background: var(--dsw-specific-bubble, var(--dsw-alias-bg-base));
-  font: var(--dsw-font-s-14);
+  font-size: var(--dsh-content-font-size, 14px);
+  line-height: calc(22px + var(--dsh-content-font-delta, 0px));
+  font-family: var(--dsw-font-family);
   color: var(--dsw-alias-label-primary);
   overflow-wrap: anywhere;
 }
@@ -244,7 +252,9 @@
 /* Assistant message: full-width narration, no bubble — the main pane way. */
 .sidechatAssistant {
   align-self: stretch;
-  font: var(--dsw-font-s-14);
+  font-size: var(--dsh-content-font-size, 14px);
+  line-height: calc(22px + var(--dsh-content-font-delta, 0px));
+  font-family: var(--dsw-font-family);
   color: var(--dsw-alias-label-primary);
   overflow-wrap: anywhere;
 }
@@ -261,7 +271,9 @@
   padding: 8px 10px 6px 14px;
   border-radius: 18px;
   background: var(--dsw-specific-bubble, var(--dsw-alias-bg-base));
-  font: var(--dsw-font-s-14);
+  font-size: var(--dsh-content-font-size, 14px);
+  line-height: calc(22px + var(--dsh-content-font-delta, 0px));
+  font-family: var(--dsw-font-family);
   color: var(--dsw-alias-label-primary);
   overflow-wrap: anywhere;
 }
@@ -276,7 +288,9 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font: var(--dsw-font-xxs-12);
+  font-size: var(--dsh-content-font-size-secondary, 13px);
+  line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
+  font-family: var(--dsw-font-family);
   color: var(--dsw-alias-label-tertiary);
   user-select: none;
 }
@@ -316,7 +330,9 @@
   align-items: center;
   gap: 6px;
   padding: 1px 0;
-  font: var(--dsw-font-xxs-12);
+  font-size: var(--dsh-content-font-size-secondary, 13px);
+  line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
+  font-family: var(--dsw-font-family);
   color: var(--dsw-alias-label-tertiary);
 }
 
@@ -396,7 +412,9 @@
 }
 
 .sidechatRowProse {
-  font: var(--dsw-font-xxs-12);
+  font-size: var(--dsh-content-font-size-secondary, 13px);
+  line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
+  font-family: var(--dsw-font-family);
   color: var(--dsw-alias-label-tertiary);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -407,7 +425,8 @@
 .sidechatRowCode {
   margin: 0;
   padding: 4px 0;
-  font: var(--dsw-font-xxs-12);
+  font-size: var(--dsh-content-font-size-secondary, 13px);
+  line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
   font-family: var(--dsw-font-mono);
   color: var(--dsw-alias-label-secondary);
   white-space: pre-wrap;
@@ -431,7 +450,9 @@
   align-self: flex-end;
   max-width: 88%;
   padding: 0 2px;
-  font: var(--dsw-font-xxs-12);
+  font-size: var(--dsh-content-font-size-secondary, 13px);
+  line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
+  font-family: var(--dsw-font-family);
   font-variant-numeric: tabular-nums;
   color: var(--dsw-alias-label-tertiary);
   user-select: none;
@@ -454,7 +475,9 @@
 }
 
 .sidechatDeliverablesHead {
-  font: var(--dsw-font-xxs-12);
+  font-size: var(--dsh-content-font-size-secondary, 13px);
+  line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
+  font-family: var(--dsw-font-family);
   color: var(--dsw-alias-label-tertiary);
   user-select: none;
 }
@@ -482,7 +505,9 @@
   border: none;
   border-radius: 6px;
   background: transparent;
-  font: var(--dsw-font-xxs-12);
+  font-size: var(--dsh-content-font-size-secondary, 13px);
+  line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
+  font-family: var(--dsw-font-family);
   color: var(--dsw-alias-label-secondary);
   text-align: left;
   cursor: pointer;
