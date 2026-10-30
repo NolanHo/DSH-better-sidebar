@@ -1713,6 +1713,12 @@ export function SideChatView(props: {
               isComposing: native.isComposing,
               keyCode: native.keyCode,
             }
+            // A LIVE composition owns every key outright: no submit and no
+            // consumption, not even when the event also carries Alt or is a
+            // held-key repeat — those belong to the IME's candidate picker.
+            // (The composition-CLOSING window is a different case: see below.)
+            const phase = compositionPhase(gesture, composingRef.current, composingUntilRef.current)
+            if (phase === 'active') return
             if (isSubmitGesture(
               gesture,
               submitKey,
@@ -1720,16 +1726,21 @@ export function SideChatView(props: {
               composingUntilRef.current,
             )) {
               event.preventDefault()
-              void handleSend()
+              // A held key repeats the gesture it first pressed: the repeat is
+              // consumed (no stacking newlines) but only the first press sends.
+              if (gesture.repeat !== true) void handleSend()
               return
             }
             if (gesture.key !== 'Enter') return
             // A shortcut / layout chord (Alt, AltGraph, Ctrl+Meta, Shift with
-            // Ctrl/Meta) or a held-key auto-repeat is not a composer gesture:
-            // it must neither send nor leave a newline behind. The host keymap
+            // Ctrl/Meta) is not a composer gesture: it must neither send nor
+            // leave a newline behind. The host keymap
             // stops its fallback line break at CRITICAL priority for exactly
-            // these keys; a plain textarea has only the one lever.
-            if (isGuardedKeydown(gesture) || gesture.repeat === true) {
+            // these keys; a plain textarea has only the one lever. A repeat is
+            // NOT handled here — it is judged by the gesture it repeats, so a
+            // repeated newline gesture (Shift+Enter, or the bare Enter of
+            // 'mod-enter' mode) keeps its native line break.
+            if (isGuardedKeydown(gesture)) {
               event.preventDefault()
               return
             }

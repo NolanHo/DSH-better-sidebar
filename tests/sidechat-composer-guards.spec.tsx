@@ -36,11 +36,20 @@
  *    consuming the DOM event". A React textarea has no such middle state: the
  *    newline is suppressed by `preventDefault()`, which is why this spec pins
  *    `defaultPrevented === true` for the combos the host neutralizes.)
- * 2. HELD-DOWN ENTER. `repeat === true` never submits — in BOTH modes and
- *    including the Cmd/Ctrl chord of `'mod-enter'` — and is CONSUMED
- *    (`defaultPrevented === true`), the same fate as any submit-chord keydown,
- *    so a held Enter cannot spray sends or newlines. This matches the host,
- *    which calls `preventDefault()` and then bails out on `repeat`.
+ * 2. HELD-DOWN ENTER. `repeat === true` never submits, in either mode and
+ *    including the Cmd/Ctrl chord of `'mod-enter'`. The repeat guard sits AFTER
+ *    the newline decision, exactly as in the host keymap (`keymap.ts:141`
+ *    returns `false` for a plain Enter — the newline — before `:156-158`
+ *    reaches `preventDefault()` and its `repeat` bail-out). A repeated keydown
+ *    is therefore judged by the gesture it repeats:
+ *      - a gesture that WOULD SUBMIT is CONSUMED (`defaultPrevented === true`):
+ *        the bare Enter of `'enter'` mode, the Cmd/Ctrl+Enter of `'mod-enter'`;
+ *      - a NEWLINE gesture keeps its native line break (`defaultPrevented ===
+ *        false`): `Shift+Enter` in either mode, and the bare Enter of
+ *        `'mod-enter'` mode. Consuming those repeats is a regression — holding
+ *        Shift+Enter would insert exactly ONE newline instead of growing the
+ *        paragraph.
+ *    In neither case may a repeat submit.
  * 3. IME OWNERSHIP (`keyCode === 229`, the legacy signal engines report while a
  *    composition owns the keyboard): never submits AND is NOT consumed
  *    (`defaultPrevented === false`) — the browser and the IME own the gesture,
@@ -197,15 +206,16 @@ describe('composer modifier guard (host keymap parity)', () => {
     }
   })
 
-  it('never submits a held-down Enter (repeat), and consumes it instead of stacking newlines', async () => {
+  it('never submits a held-down submit gesture, and consumes it (enter mode)', async () => {
     const { view, field } = await mountWithDraft(harness, 'held draft')
     try {
-      // A held Enter arrives as the first (repeat: false) keydown followed by a
-      // stream of repeat events; only the first may send.
+      // A held key arrives as one `repeat: false` keydown followed by repeat
+      // events; only the first may send. In 'enter' mode the bare Enter IS the
+      // submit gesture, so its repeats are consumed like the submit itself.
       const repeat = pressEnter(field, { repeat: true })
       await harness.flush(2)
       expect(promptCount(harness), 'a repeat Enter must not send').toBe(0)
-      expect(repeat.defaultPrevented, 'a repeat Enter is consumed, never a newline').toBe(true)
+      expect(repeat.defaultPrevented, 'a repeat of the submit gesture is consumed').toBe(true)
       expect(harness.composerValue(), 'the draft survives the auto-repeat').toBe('held draft')
     } finally {
       view.unmount()
@@ -223,6 +233,34 @@ describe('composer modifier guard (host keymap parity)', () => {
       expect(harness.composerValue()).toBe('held chord draft')
     } finally {
       view.unmount()
+    }
+  })
+
+  it('lets a held-down NEWLINE gesture keep its native line break', async () => {
+    // The repeat guard must not outrank the newline decision: holding
+    // Shift+Enter (either mode) or the bare Enter of 'mod-enter' mode has to
+    // keep inserting line breaks — one is what a consumed repeat would leave.
+    const cases: Array<[string, string, PressInit]> = [
+      ['enter mode: held Shift+Enter', 'enter', { shift: true, repeat: true }],
+      ['mod-enter mode: held bare Enter', 'mod-enter', { repeat: true }],
+      ['mod-enter mode: held Shift+Enter', 'mod-enter', { shift: true, repeat: true }],
+    ]
+    for (const [label, mode, init] of cases) {
+      harness.extraProps.submitKey = mode
+      const { view, field } = await mountWithDraft(harness, 'held newline')
+      try {
+        const before = promptCount(harness)
+        const event = pressEnter(field, init)
+        await harness.flush(2)
+        expect.soft(promptCount(harness), `${label}: a repeated newline gesture never sends`).toBe(before)
+        expect.soft(
+          event.defaultPrevented,
+          `${label}: a repeated newline gesture keeps its native line break`,
+        ).toBe(false)
+        expect.soft(harness.composerValue(), `${label}: the draft survives`).toBe('held newline')
+      } finally {
+        view.unmount()
+      }
     }
   })
 

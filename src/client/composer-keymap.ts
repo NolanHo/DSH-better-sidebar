@@ -33,6 +33,16 @@
  * Consumption is part of the contract, not just "don't submit": a keydown in
  * the composition-CLOSING window is swallowed (no submit, no newline) while a
  * LIVE composition key is left untouched so the candidate picker keeps it.
+ *
+ * The caller applies the decisions in the host keymap's order:
+ *   1. a LIVE composition owns the key outright (no submit, no consumption —
+ *      not even when the event also carries Alt or is a repeat);
+ *   2. the submit gesture (see {@link isSubmitGesture}) is consumed and sends
+ *      unless `repeat` marks it as a held key — a repeated submit gesture is
+ *      consumed WITHOUT sending, while a repeated newline gesture keeps its
+ *      native line break;
+ *   3. a shortcut/layout chord ({@link isGuardedKeydown}) and the closing-window
+ *      Enter are consumed without sending.
  */
 import type { SidechatSubmitKey } from '../prefs-shared.ts'
 
@@ -138,18 +148,25 @@ export function isComposingKeydown(
 }
 
 /**
- * Whether this keydown should submit the draft under the configured mode.
+ * Whether this keydown REPRESENTS the submit gesture under the configured mode.
  *
- * Priority (the host keymap's own order): a shortcut/layout modifier chord or a
- * held-key auto-repeat outranks everything, then `Shift+Enter`'s newline, then
- * the IME guard, and only then the configured submit mode — so an
- * `Alt+Enter`, a `Ctrl+Meta+Enter` or a repeated `Cmd+Enter` never sends.
+ * The answer is about the gesture, not about how many times the key has fired:
+ * an auto-repeat represents the gesture it repeats, so the caller decides what
+ * to do with `repeat` AFTER this question — exactly the host keymap's order,
+ * where the plain-Enter newline (`keymap.ts:141`) is settled before the
+ * `preventDefault()` + repeat bail-out (`:156-158`). A repeated submit gesture
+ * must not send; a repeated NEWLINE gesture must keep its native line break.
+ *
+ * Priority for the gesture itself (the host keymap's own order): a
+ * shortcut/layout modifier chord outranks everything, then `Shift+Enter`'s
+ * newline, then the IME guard, and only then the configured submit mode.
  * @param event - the keydown's fields.
  * @param submitKey - the configured submission mode.
  * @param composing - whether a composition is LIVE right now.
  * @param composingUntil - the composition-end grace deadline (see above).
  * @param now - the current time (injectable for deterministic tests).
- * @returns true when the gesture submits (the caller consumes it).
+ * @returns true when the gesture submits (the caller consumes it and, unless
+ *   this is a repeat, sends the draft).
  */
 export function isSubmitGesture(
   event: ComposerKeyEvent,
@@ -161,8 +178,6 @@ export function isSubmitGesture(
   if (event.key !== 'Enter') return false
   // A shortcut / layout chord is not a composer gesture at all.
   if (isGuardedKeydown(event)) return false
-  // A held-down key repeats the previous press; it must not machine-gun sends.
-  if (event.repeat === true) return false
   // Shift+Enter NEVER submits: it is the newline gesture in both modes.
   if (event.shiftKey) return false
   if (isComposingKeydown(event, composing, composingUntil, now)) return false
