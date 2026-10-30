@@ -4,6 +4,9 @@
 
 ### 未发布
 
+- ⌨️ **快捷键与布局组合键不再误发侧边对话的消息**：keydown 此前只认 Enter + Shift + IME，于是 `Alt+Enter`（macOS 上 Option 是打重音／符号的键）、`AltGraph+Enter`（部分布局的切换手势）、`Ctrl+Meta+Enter` 都会直接提交并清空草稿；`Shift+Ctrl/Meta+Enter` 则既不提交也不消费，凭空多出一个换行；按住 Enter 还会一次接一次地连发。现在对齐宿主 composer 的第一道线：修饰键组合（Alt / AltGraph / Ctrl+Meta / Shift+Ctrl|Meta）既不提交也不换行（事件被消费），`repeat` 的按住事件永不提交且被消费；`keyCode 229` 仍原样交给输入法（**不**消费），裸 Enter / Cmd+Enter / Shift+Enter 的既有行为不变。
+  - 🧪 测试：`tests/sidechat-composer-guards.spec.tsx`（两种模式下五组修饰键、两种 repeat、229 不消费、以及真实手势不被吞）。
+
 - ▶️ **运行中的侧边对话可以同时「发送」和「停止」**：composer 此前是 `running ? 停止 : 发送` 的二元切换——运行中发送按钮直接消失，读者以为不能追问（而键盘 Enter 一直能发，宿主会把消息收进线程的收件箱）。现在运行中两个控件同时留在 composer bar：发送照常排队（恰好一次 `sidechat.prompt`、不会 cancel），停止只 cancel、不发送。可用性按控件各自判断：草稿只决定发送是否可用，**不会**让停止变灰（`busy` 才同时禁两者）；停止之后草稿与发送按钮都保留。
   - 🧪 测试：`tests/sidechat-send-while-running.spec.tsx`（并存且都不隐藏、发送只排队不取消、停止只取消、空草稿只禁发送）。
 

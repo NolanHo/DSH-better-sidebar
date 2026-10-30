@@ -40,18 +40,43 @@ import type { SidechatSubmitKey } from '../prefs-shared.ts'
 export const COMPOSITION_END_GRACE_MS = 10
 
 /** The key-event fields the decisions read (the view feeds the native event's
- *  `isComposing` / `keyCode` beside React's modifier flags). */
+ *  `isComposing` / `keyCode` / modifiers beside React's flags). */
 export interface ComposerKeyEvent {
   /** The key name (`'Enter'`). */
   key: string
   shiftKey: boolean
   metaKey: boolean
   ctrlKey: boolean
+  /** Option/Alt — on macOS the reader's way to type an accented character. */
+  altKey?: boolean
+  /** `KeyboardEvent.getModifierState('AltGraph')`: the AltGr modifier, which
+   *  some layouts use as a switcher gesture (never a form submit). */
+  altGraph?: boolean
+  /** This keydown is an auto-repeat of a held key, not a fresh press. */
+  repeat?: boolean
   /** The engine's composition flag (absent on events that do not carry it). */
   isComposing?: boolean
   /** The legacy IME key code (229 while an engine hides its composition). */
   keyCode?: number
 }
+
+/**
+ * Whether this keydown is a SHORTCUT / layout gesture rather than a composer
+ * gesture: the host keymap's first line (`altKey` / AltGraph / `Ctrl+Meta` /
+ * `Shift` with `Ctrl` or `Meta`). Such a keydown must neither submit the draft
+ * nor insert a newline — the host returns "stop the fallback line break
+ * without consuming the DOM event", and a plain textarea only has the one
+ * lever, so the caller consumes it.
+ * @param event - the keydown's fields.
+ * @returns true for a modifier chord the composer must leave alone.
+ */
+export function isGuardedKeydown(event: ComposerKeyEvent): boolean {
+  if (event.altKey === true) return true
+  if (event.altGraph === true) return true
+  if (event.ctrlKey && event.metaKey) return true
+  return event.shiftKey && (event.ctrlKey || event.metaKey)
+}
+
 
 /**
  * How one keydown relates to an IME composition:
@@ -114,8 +139,11 @@ export function isComposingKeydown(
 
 /**
  * Whether this keydown should submit the draft under the configured mode.
- * The IME guard is checked FIRST: a composition key is never a submit
- * gesture, not even as a `Cmd/Ctrl+Enter` chord.
+ *
+ * Priority (the host keymap's own order): a shortcut/layout modifier chord or a
+ * held-key auto-repeat outranks everything, then `Shift+Enter`'s newline, then
+ * the IME guard, and only then the configured submit mode — so an
+ * `Alt+Enter`, a `Ctrl+Meta+Enter` or a repeated `Cmd+Enter` never sends.
  * @param event - the keydown's fields.
  * @param submitKey - the configured submission mode.
  * @param composing - whether a composition is LIVE right now.
@@ -131,9 +159,13 @@ export function isSubmitGesture(
   now: number = Date.now(),
 ): boolean {
   if (event.key !== 'Enter') return false
-  if (isComposingKeydown(event, composing, composingUntil, now)) return false
+  // A shortcut / layout chord is not a composer gesture at all.
+  if (isGuardedKeydown(event)) return false
+  // A held-down key repeats the previous press; it must not machine-gun sends.
+  if (event.repeat === true) return false
   // Shift+Enter NEVER submits: it is the newline gesture in both modes.
   if (event.shiftKey) return false
+  if (isComposingKeydown(event, composing, composingUntil, now)) return false
   if (submitKey === 'mod-enter') return event.metaKey || event.ctrlKey
   return true
 }

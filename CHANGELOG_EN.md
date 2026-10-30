@@ -6,6 +6,9 @@
 
 ### Unreleased
 
+- ⌨️ **Shortcut and layout chords no longer send by accident.** The keydown path only looked at Enter + Shift + the IME signals, so `Alt+Enter` (Option is how a macOS reader types an accent or a symbol), `AltGraph+Enter` (a layout-switcher gesture on several layouts) and `Ctrl+Meta+Enter` submitted and wiped the draft; `Shift+Ctrl/Meta+Enter` was neither submitted nor consumed, leaving a stray newline; holding Enter down machine-gunned one send per repeat. The composer now honours the host keymap's first line: modifier chords (Alt / AltGraph / Ctrl+Meta / Shift with Ctrl or Meta) neither submit nor break the line (the event is consumed), `repeat` keydowns never submit and are consumed, `keyCode 229` still goes to the input method untouched, and the plain Enter / Cmd+Enter / Shift+Enter behaviour is unchanged.
+  - 🧪 `tests/sidechat-composer-guards.spec.tsx` (five chords in both modes, both repeat cases, 229 left unconsumed, real gestures still working).
+
 - ▶️ **A running side chat can be sent to AND stopped at the same time.** The composer swapped `running ? stop : send`, so while a turn ran the send button simply disappeared and readers concluded they could not queue a follow-up — while Enter always could (the host accepts the message into the thread's inbox). Both controls now stay in the composer bar while a turn runs: sending queues exactly one `sidechat.prompt` and cancels nothing, stopping issues one `sidechat.cancel` and sends nothing. Availability is per control: an empty draft disables sending only and never greys out stop (`busy` alone gates both), and both the draft and the send action survive a stop.
   - 🧪 `tests/sidechat-send-while-running.spec.tsx` (both mounted and un-hidden, send queues without cancelling, stop cancels without sending, empty draft only disables send).
 

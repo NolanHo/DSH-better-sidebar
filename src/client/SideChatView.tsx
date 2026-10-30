@@ -64,7 +64,7 @@ import {
   type TerminalBlockLabels,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { markdownTextProps } from './markdown-labels.tsx'
-import { COMPOSITION_END_GRACE_MS, compositionPhase, isSubmitGesture } from './composer-keymap.ts'
+import { COMPOSITION_END_GRACE_MS, compositionPhase, isGuardedKeydown, isSubmitGesture } from './composer-keymap.ts'
 import { SidechatAssistantRow, type SidechatRowSurfaceBinding } from './SidechatAssistantRow.tsx'
 import { rewriteProseLocalImageUrls } from './markdown-images.ts'
 import { hostTransportBase } from './desktop-env.ts'
@@ -1698,15 +1698,18 @@ export function SideChatView(props: {
             composingUntilRef.current = Date.now() + COMPOSITION_END_GRACE_MS
           }}
           onKeyDown={event => {
-            // The submit contract (and the IME guard that outranks it) lives in
-            // composer-keymap.ts; the legacy signals only exist on the native
-            // event.
+            // The submit contract (and the guards that outrank it) live in
+            // composer-keymap.ts; the legacy signals and the modifier queries
+            // only exist on the native event.
             const native = event.nativeEvent
             const gesture = {
               key: event.key,
               shiftKey: event.shiftKey,
               metaKey: event.metaKey,
               ctrlKey: event.ctrlKey,
+              altKey: native.altKey,
+              altGraph: native.getModifierState('AltGraph'),
+              repeat: native.repeat,
               isComposing: native.isComposing,
               keyCode: native.keyCode,
             }
@@ -1720,6 +1723,16 @@ export function SideChatView(props: {
               void handleSend()
               return
             }
+            if (gesture.key !== 'Enter') return
+            // A shortcut / layout chord (Alt, AltGraph, Ctrl+Meta, Shift with
+            // Ctrl/Meta) or a held-key auto-repeat is not a composer gesture:
+            // it must neither send nor leave a newline behind. The host keymap
+            // stops its fallback line break at CRITICAL priority for exactly
+            // these keys; a plain textarea has only the one lever.
+            if (isGuardedKeydown(gesture) || gesture.repeat === true) {
+              event.preventDefault()
+              return
+            }
             // Safari delivers the composition-closing Enter AFTER
             // `compositionend`, i.e. with no composition flag: the guard
             // already refused to submit, and the textarea would now insert a
@@ -1728,7 +1741,7 @@ export function SideChatView(props: {
             // key is left untouched (the IME owns it), and Shift+Enter keeps
             // its native newline in every state.
             const phase = compositionPhase(gesture, composingRef.current, composingUntilRef.current)
-            if (phase === 'closing' && gesture.key === 'Enter' && !gesture.shiftKey) {
+            if (phase === 'closing' && !gesture.shiftKey) {
               event.preventDefault()
             }
           }}
