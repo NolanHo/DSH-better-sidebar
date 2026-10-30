@@ -4,6 +4,9 @@
 
 ### 未发布
 
+- 🪶 **长侧边对话只挂载尾部窗口，滚上去阅读不再被拽回底部**：转录此前一次性挂载整段历史（每张代码卡、表格、图片都在 DOM 里），且每次增长都无条件把滚动条钉到底——宿主在流式期间约每 250 ms 推一次失效，于是长线程既慢，又没法回看刚生成的内容。现在**最多挂载尾部 50 行**，未挂载的历史折成顶部 spacer（内联 px 高度，按隐藏行数线性）并配「展开更早的 {hidden} 条」按钮：每次再挂 25 行，展完按钮自动消失，任何一行都不会丢。跟随滚动改成「近底部意图」：`scrollHeight - clientHeight - scrollTop <= 24` 判跟随，跟随时只把 `scrollTop` 写到**底部偏移**（不是原始 `scrollHeight`），**不跟随时完全不写**；离开底部后出现「回到最新」浮标，点一下回到最新并恢复跟随。新增 `sideChatRevealEarlier` / `sideChatToLatest` 文案（21 份词典全覆盖）。
+  - 🧪 测试：`tests/sidechat-windowed-transcript.spec.tsx`（尾窗 / spacer 线性 / 揭示步长 / 文案取自词典）与 `tests/sidechat-scroll-follow.spec.tsx`（近底部跟随、不拽回、回底控件、揭示不拽回）由 7 红转绿；`tests/sidechat-composer-typing-cost.spec.tsx` 仍保持「一次敲键 0 行重渲染」。
+
 - ⌨️ **侧边对话的发送键可配置（Enter / Cmd·Ctrl+Enter），并补上 IME 安全与打字成本**：输入框此前写死「非 Shift 的 Enter 提交」，中日韩输入法还在挑候选词时按 Enter 就会把半成品发出去；旧判断也只认 `isComposing`，Safari 在 `compositionend` 之后才送 closing keydown 的那一路会漏判。现在「侧边卡片」设置页里侧边对话卡片的齿轮下新增「发送键」下拉（`Enter 发送` / `Cmd/Ctrl + Enter 发送`，默认 `Enter`），值存进该功能自己的 `pluginSettings.sidechat.submitKey`（走既有 settings 路由，不新增 host PrefsSchema 字段），已打开的页签即时跟随。IME guard 对齐宿主 composer：`isComposing`、遗留 `keyCode === 229`、`compositionend` 后 10 ms 宽限，且 guard 优先于 Cmd/Ctrl 和弦。顺带两笔成本修复：转录行改为按输入 memo 复用（一次敲键不再重跑未变化行的 `toolArgsSummary` / `formatTokens` / Markdown 渲染），`growComposer()` 的 `scrollHeight` 强制回流挪到下一帧。
   - 🧪 测试：`tests/sidechat-composer-keymap.spec.tsx`（发送键 + IME guard 契约）与 `tests/sidechat-composer-typing-cost.spec.tsx`（长转录下单次敲键 0 行重渲染）转绿；新增 `tests/sidechat-submit-key-pref.spec.tsx` 钉住默认值、`parsePrefs` 对非法值的归一，以及「值确实喂给 `SideChatView`」。
   - 🐞 **设置页的「发送键」在全新配置下显示「—」而不是实际生效的 `Enter`**：插件自有的设置行（`pluginToggles`）此前只读 `pluginSettings[<id>]` blob，新文档里它是空的，select 行于是渲染成「无值」，而 composer 其实已经按 Enter 发送。现在行可以声明 `defaultValue`（值须 JSON 可序列化），首次写入前即显示并返回该值、写入后存储值优先；switch 行行为不变（读不到布尔本来就是关闭）。发送键行已用上它，`docs/external-plugin-guide.md` §4.1 / §8 同步说明这一字段。

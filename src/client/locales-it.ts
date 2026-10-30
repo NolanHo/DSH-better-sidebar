@@ -427,6 +427,8 @@ export const it: Record<string, string> = {
   sideChatPendingDrop: 'L’ultima domanda di follow-up senza risposta non sarà inclusa nella sessione salvata',
   sideChatQueued: 'In coda',
   sideChatSending: 'Invio…',
+  sideChatRevealEarlier: 'Mostra {hidden} righe precedenti',
+  sideChatToLatest: 'Torna al più recente',
   sideChatDequeue: 'Rimuovi dalla coda',
   sideChatRunError: 'Esecuzione non riuscita: {message}',
   sideChatModel: 'Modello',

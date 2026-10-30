@@ -436,6 +436,8 @@ export const th: Record<string, string> = {
   sideChatPendingDrop: 'การติดตามที่ยังไม่ได้ตอบครั้งสุดท้ายจะไม่รวมในเซสชันที่บันทึก',
   sideChatQueued: 'อยู่ในคิว',
   sideChatSending: 'กำลังส่ง…',
+  sideChatRevealEarlier: 'แสดง {hidden} แถวก่อนหน้า',
+  sideChatToLatest: 'กลับไปที่ล่าสุด',
   sideChatDequeue: 'ลบออกจากคิว',
   sideChatRunError: 'ทำงานล้มเหลว: {message}',
   sideChatModel: 'โมเดล',

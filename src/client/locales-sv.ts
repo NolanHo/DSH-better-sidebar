@@ -419,6 +419,8 @@ export const sv: Record<string, string> = {
   sideChatPendingDrop: 'Den senaste obesvarade följdfrågan inkluderas inte i den sparade sessionen',
   sideChatQueued: 'I kö',
   sideChatSending: 'Skickar…',
+  sideChatRevealEarlier: 'Visa {hidden} tidigare rader',
+  sideChatToLatest: 'Tillbaka till senaste',
   sideChatDequeue: 'Ta bort från kön',
   sideChatRunError: 'Körning misslyckades: {message}',
   sideChatModel: 'Modell',

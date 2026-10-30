@@ -436,6 +436,8 @@ export const tr: Record<string, string> = {
   sideChatPendingDrop: 'Son yanıtlanmamış devam sorusu kaydedilen oturuma dahil edilmez',
   sideChatQueued: 'Kuyrukta',
   sideChatSending: 'Gönderiliyor…',
+  sideChatRevealEarlier: '{hidden} önceki satırı göster',
+  sideChatToLatest: 'En sona dön',
   sideChatDequeue: 'Kuyruktan kaldır',
   sideChatRunError: 'Çalıştırma başarısız: {message}',
   sideChatModel: 'Model',

@@ -419,6 +419,8 @@ export const pt: Record<string, string> = {
   sideChatPendingDrop: 'A última pergunta não respondida não será incluída na sessão salva',
   sideChatQueued: 'Na fila',
   sideChatSending: 'Enviando…',
+  sideChatRevealEarlier: 'Mostrar {hidden} linhas anteriores',
+  sideChatToLatest: 'Voltar ao mais recente',
   sideChatDequeue: 'Remover da fila',
   sideChatRunError: 'Falha na execução: {message}',
   sideChatModel: 'Modelo',

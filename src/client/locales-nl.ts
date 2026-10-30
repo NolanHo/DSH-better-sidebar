@@ -434,6 +434,8 @@ export const nl: Record<string, string> = {
   sideChatPendingDrop: 'De laatste onbeantwoorde follow-up wordt niet meegenomen in de opgeslagen sessie',
   sideChatQueued: 'In wachtrij',
   sideChatSending: 'Versturen…',
+  sideChatRevealEarlier: '{hidden} eerdere rijen tonen',
+  sideChatToLatest: 'Terug naar nieuwste',
   sideChatDequeue: 'Uit wachtrij verwijderen',
   sideChatRunError: 'Uitvoering mislukt: {message}',
   sideChatModel: 'Model',

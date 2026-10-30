@@ -434,6 +434,8 @@ export const id: Record<string, string> = {
   sideChatPendingDrop: 'Tindak lanjut yang belum terjawab terakhir tidak akan disertakan dalam sesi yang disimpan',
   sideChatQueued: 'Dalam antrean',
   sideChatSending: 'Mengirim…',
+  sideChatRevealEarlier: 'Tampilkan {hidden} baris lebih lama',
+  sideChatToLatest: 'Kembali ke terbaru',
   sideChatDequeue: 'Hapus dari antrean',
   sideChatRunError: 'Eksekusi gagal: {message}',
   sideChatModel: 'Model',

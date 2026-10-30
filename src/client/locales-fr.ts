@@ -429,6 +429,8 @@ export const fr: Record<string, string> = {
   sideChatPendingDrop: 'La dernière relance inachevée ne sera pas incluse dans la nouvelle session',
   sideChatQueued: 'En attente',
   sideChatSending: 'Envoi…',
+  sideChatRevealEarlier: 'Afficher {hidden} lignes plus anciennes',
+  sideChatToLatest: 'Revenir au plus récent',
   sideChatDequeue: 'Retirer de la file',
   sideChatRunError: 'Échec de l’exécution : {message}',
   sideChatModel: 'Modèle',

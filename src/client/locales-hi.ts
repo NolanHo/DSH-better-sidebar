@@ -436,6 +436,8 @@ export const hi: Record<string, string> = {
   sideChatPendingDrop: 'अंतिम अनुत्तरित फ़ॉलो-अप सहेजे गए सत्र में शामिल नहीं होगा',
   sideChatQueued: 'कतार में',
   sideChatSending: 'भेजा जा रहा है…',
+  sideChatRevealEarlier: '{hidden} पुरानी पंक्तियाँ दिखाएँ',
+  sideChatToLatest: 'नवीनतम पर लौटें',
   sideChatDequeue: 'कतार से हटाएँ',
   sideChatRunError: 'निष्पादन विफल: {message}',
   sideChatModel: 'मॉडल',

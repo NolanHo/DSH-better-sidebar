@@ -451,6 +451,8 @@ export const zhTW: Record<string, string> = {
   sideChatPendingDrop: '最後一則未完成的追問不會包含在新工作階段中',
   sideChatQueued: '排隊中',
   sideChatSending: '傳送中…',
+  sideChatRevealEarlier: '展開更早的 {hidden} 則',
+  sideChatToLatest: '回到最新',
   sideChatDequeue: '從佇列移除',
   sideChatRunError: '執行失敗：{message}',
   sideChatModel: '模型',

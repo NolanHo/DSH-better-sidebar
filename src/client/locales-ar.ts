@@ -437,6 +437,8 @@ export const ar: Record<string, string> = {
   sideChatPendingDrop: 'لن يُضمَّ آخر متابعة لم يُجَب عنها في الجلسة المحفوظة',
   sideChatQueued: 'في قائمة الانتظار',
   sideChatSending: 'يُرسَل…',
+  sideChatRevealEarlier: 'إظهار {hidden} سطرًا أقدم',
+  sideChatToLatest: 'العودة إلى الأحدث',
   sideChatDequeue: 'إزالة من قائمة الانتظار',
   sideChatRunError: 'فشل التشغيل: {message}',
   sideChatModel: 'الطراز',

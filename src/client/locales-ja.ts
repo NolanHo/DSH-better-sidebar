@@ -436,6 +436,8 @@ export const ja: Record<string, string> = {
   sideChatPendingDrop: '最後の未回答フォローアップは保存される会話に含まれません',
   sideChatQueued: '待機中',
   sideChatSending: '送信中…',
+  sideChatRevealEarlier: '以前の {hidden} 件を表示',
+  sideChatToLatest: '最新へ戻る',
   sideChatDequeue: 'キューから削除',
   sideChatRunError: '実行失敗：{message}',
   sideChatModel: 'モデル',

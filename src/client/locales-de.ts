@@ -422,6 +422,8 @@ export const de: Record<string, string> = {
   sideChatPendingDrop: 'Die letzte unbeantwortete Nachfrage wird in der gespeicherten Sitzung nicht enthalten sein',
   sideChatQueued: 'In der Warteschlange',
   sideChatSending: 'Wird gesendet…',
+  sideChatRevealEarlier: '{hidden} ältere Zeilen anzeigen',
+  sideChatToLatest: 'Zurück zum Neuesten',
   sideChatDequeue: 'Aus der Warteschlange entfernen',
   sideChatRunError: 'Ausführung fehlgeschlagen: {message}',
   sideChatModel: 'Modell',

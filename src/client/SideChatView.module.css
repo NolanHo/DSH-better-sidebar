@@ -15,6 +15,8 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  /* Positioning context for the floating "back to latest" pill. */
+  position: relative;
 }
 
 /* ── composer-bar controls (model picker · thread menu · save · archive):
@@ -165,9 +167,66 @@
   gap: 10px;
 }
 
-/* Rows crossfade in on append (keys are stable, so only NEW rows play). */
-.sidechatScroll > * {
+/* Rows crossfade in on append (keys are stable, so only NEW rows play). The
+   mount box is `display: contents`, so it has no box of its own: the row does
+   the animating. */
+.sidechatScroll > *,
+.sidechatRowMount > * {
   animation: sidechatRowIn 180ms ease-out;
+}
+
+/* One mounted transcript row's box. `display: contents` keeps the row itself a
+   flex child of the scroller (its own `align-self` / `max-width` still apply,
+   the scroller's `gap` still separates rows) while giving the DOM a stable,
+   countable hook — including for rows that render nothing at all. */
+.sidechatRowMount {
+  display: contents;
+}
+
+/* The hidden head of a long thread: the spacer ONLY declares scroll space (its
+   height is inline, one row estimate per unmounted row) and the control mounts
+   one more step of history. */
+.sidechatSpacer {
+  flex: none;
+}
+
+.sidechatRevealEarlier {
+  flex: none;
+  align-self: center;
+  padding: 4px 12px;
+  border: 1px solid var(--dsw-alias-border-l2, var(--dsw-alias-border-l1));
+  border-radius: 999px;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-secondary);
+  font: var(--dsw-font-s-12);
+  cursor: pointer;
+}
+
+.sidechatRevealEarlier:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* Return-to-latest pill: floats over the transcript's bottom edge while the
+   reader is away from the tail; the pane is the positioning context. */
+.sidechatToLatest {
+  position: absolute;
+  bottom: 120px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  padding: 4px 12px;
+  border: 1px solid var(--dsw-alias-border-l2, var(--dsw-alias-border-l1));
+  border-radius: 999px;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-secondary);
+  font: var(--dsw-font-s-12);
+  box-shadow: var(--dsw-alias-shadow-l1, 0 2px 8px rgb(0 0 0 / 12%));
+  cursor: pointer;
+}
+
+.sidechatToLatest:hover {
+  color: var(--dsw-alias-label-primary);
 }
 
 /* User message: right-aligned bubble, same surface as the main pane. */
@@ -627,6 +686,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .sidechatScroll > *,
+  .sidechatRowMount > *,
   .sidechatHero,
   .sidechatStatus,
   .sidechatSendBtn,

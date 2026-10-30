@@ -434,6 +434,8 @@ export const ru: Record<string, string> = {
   sideChatPendingDrop: 'Последний незавершённый уточняющий вопрос не попадёт в сохранённую сессию',
   sideChatQueued: 'В очереди',
   sideChatSending: 'Отправка…',
+  sideChatRevealEarlier: 'Показать ещё {hidden} строк',
+  sideChatToLatest: 'К последнему',
   sideChatDequeue: 'Убрать из очереди',
   sideChatRunError: 'Сбой выполнения: {message}',
   sideChatModel: 'Модель',

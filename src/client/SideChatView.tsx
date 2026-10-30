@@ -117,6 +117,20 @@ const POLL_MS = 15_000
 const PUSH_DEBOUNCE_MS = 80
 /** Textarea auto-grow ceiling (px) — the composer scrolls beyond it. */
 const COMPOSER_MAX_HEIGHT = 132
+/** Transcript rows MOUNTED at once. The mapping still produces every row (see
+ *  `transcriptRows`); only the DOM is bounded — a long thread used to mount
+ *  every code card, table and image it ever contained. */
+const TRANSCRIPT_WINDOW_MAX = 50
+/** How many more rows one "reveal earlier" activation mounts. */
+const TRANSCRIPT_REVEAL_STEP = 25
+/** Declared height of ONE hidden row in the top spacer (px). jsdom performs no
+ *  layout and a measured height would read 0 there, so the spacer carries its
+ *  height inline; the contract only needs it to be linear in the hidden row
+ *  count, because a revealed row takes back exactly the height it frees. */
+const TRANSCRIPT_HIDDEN_ROW_PX = 28
+/** The host's own near-bottom rule: within this distance of the bottom offset
+ *  (scrollHeight - clientHeight - scrollTop) the reader is following the tail. */
+const TRANSCRIPT_FOLLOW_THRESHOLD_PX = 24
 
 /**
  * Run one callback on the next animation frame, or on the next macrotask when
@@ -740,6 +754,14 @@ export function SideChatView(props: {
   const [menuOpen, setMenuOpen] = useState(false)
   const [modelMenuOpen, setModelMenuOpen] = useState(false)
   const [catalog, setCatalog] = useState<SidechatModelCatalog | null>(null)
+  /** Rows the reader explicitly revealed above the tail window (one
+   *  {@link TRANSCRIPT_REVEAL_STEP} per activation). */
+  const [revealedRows, setRevealedRows] = useState(0)
+  /** Whether the reader is following the tail (the host's near-bottom rule,
+   *  re-read from the scroller's own `scroll` events). It is an INTENT: the
+   *  stream pins the scroller only while it holds, so a reader who scrolled up
+   *  to re-read an answer is not yanked back by the next host push. */
+  const [followingTail, setFollowingTail] = useState(true)
   /** Local echo of the message just sent: shown until the host reports it
    *  pending or logs it durably (see the drop effect below). `seq` is the
    *  transcript tail at send time, so an OLDER identical message cannot
@@ -1105,6 +1127,14 @@ export function SideChatView(props: {
     [threadId, revision],
   )
 
+  /** The tail window: at most {@link TRANSCRIPT_WINDOW_MAX} rows are MOUNTED,
+   *  plus whatever the reader revealed by hand. `rows` itself keeps every
+   *  mapped row — the window bounds the DOM, never the model of the thread. */
+  const mountedRowCount = Math.min(rows.length, TRANSCRIPT_WINDOW_MAX + revealedRows)
+  /** How many mapped rows the window leaves out (0 = nothing hidden). */
+  const hiddenRowCount = rows.length - mountedRowCount
+  const visibleRows = useMemo(() => rows.slice(hiddenRowCount), [rows, hiddenRowCount])
+
   /** The unclaimed inbox rows that still need a bubble: a pending message the
    *  host already logged durably (the claim raced the read) must not render
    *  twice, so it is matched by the durable message id. */
@@ -1150,13 +1180,41 @@ export function SideChatView(props: {
   const hasOutputRow = rows.some(row => row.kind === 'assistant' || row.kind === 'reasoning')
   const showThinking = threadId !== undefined && (running || (echo !== null && !hasOutputRow))
 
-  // Follow the stream: stick to the bottom while the log — or the pending
-  // tail — grows.
+  // Follow the stream: while the reader is at (or near) the bottom, growth
+  // pins the scroller to the BOTTOM OFFSET (scrollHeight - clientHeight) — the
+  // raw scrollHeight is a browser-clamped over-scroll that hides the offset
+  // arithmetic. A reader who scrolled away is never moved: the host pushes an
+  // invalidation every ~250 ms while a turn streams, so an unconditional write
+  // made re-reading the middle of an answer impossible.
   useEffect(() => {
     const scroller = scrollRef.current
-    if (scroller === null) return
-    scroller.scrollTop = scroller.scrollHeight
-  }, [rows.length, pendingRows.length, echoText, threadId])
+    if (scroller === null || !followingTail) return
+    scroller.scrollTop = scroller.scrollHeight - scroller.clientHeight
+  }, [followingTail, rows.length, pendingRows.length, echoText, threadId])
+
+  // A different thread starts at its own tail with nothing revealed — both the
+  // window and the follow intent are per transcript, not per tab.
+  useEffect(() => {
+    setRevealedRows(0)
+    setFollowingTail(true)
+  }, [threadId])
+
+  /** Re-read the follow intent from the scroller itself (the only source a real
+   *  user scroll emits). */
+  const handleTranscriptScroll = (event: React.UIEvent<HTMLDivElement>): void => {
+    const scroller = event.currentTarget
+    const distance = scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop
+    const next = distance <= TRANSCRIPT_FOLLOW_THRESHOLD_PX
+    setFollowingTail(current => (current === next ? current : next))
+  }
+
+  /** Return to the tail: re-pin immediately (the click IS the reader's intent)
+   *  and keep following from then on. */
+  const returnToLatest = (): void => {
+    const scroller = scrollRef.current
+    if (scroller !== null) scroller.scrollTop = scroller.scrollHeight - scroller.clientHeight
+    setFollowingTail(true)
+  }
 
   /** Open a NEW thread tab: the thread is created FIRST and parked for the
    *  descriptor's createTab, so the tab that opens is already bound to it —
@@ -1343,16 +1401,30 @@ export function SideChatView(props: {
     [ctx, threadId, visible, sendSurfacePrompt],
   )
   /**
-   * The rendered transcript. Memoized by its INPUTS (`rows` are reused by
-   * object identity across pushes, so an unrelated state change — a composer
-   * keystroke above all — reuses the same React elements: React bails out of
-   * an identical element, and no row renderer (`toolArgsSummary`'s JSON parse,
-   * `formatTokens`, the markdown pass) runs again for a row that did not
-   * change.
+   * The MOUNTED transcript. Memoized by its inputs (`rows` are reused by object
+   * identity across pushes and the window only moves on a reveal), so an
+   * unrelated state change — a composer keystroke above all — reuses the same
+   * React elements: React bails out of an identical element, and no row
+   * renderer (`toolArgsSummary`'s JSON parse, `formatTokens`, the markdown
+   * pass) runs again for a row that did not change.
+   *
+   * Each mounted row sits in its own `display: contents` mount box: the box is
+   * the stable test/DOM hook (`data-sidechat-transcript-row`) and keeps a row
+   * that renders NOTHING (a turn tail with no metrics) countable, while taking
+   * no part in the flex layout, so the rows keep their own alignment and the
+   * scroller's gap.
    */
   const rowNodes = useMemo(
-    () => rows.map(row => renderRow(row, rowLabels, rowSurface, genuiRowSurface)),
-    [rows, rowLabels, rowSurface, genuiRowSurface],
+    () => visibleRows.map(row => (
+      <div
+        key={`${threadId ?? 'unbound'}:${sidechatRowKey(row)}`}
+        className={css.sidechatRowMount}
+        data-sidechat-transcript-row=""
+      >
+        {renderRow(row, rowLabels, rowSurface, genuiRowSurface)}
+      </div>
+    )),
+    [visibleRows, threadId, rowLabels, rowSurface, genuiRowSurface],
   )
 
   const handleSend = async (): Promise<void> => {
@@ -1509,7 +1581,36 @@ export function SideChatView(props: {
           onReconnect={() => { ctx.connection?.reconnect() }}
         />
       )}
-      <div ref={transcriptRef} className={css.sidechatScroll} data-genui-surface="dsh-better-sidebar/sidechat">
+      <div
+        ref={transcriptRef}
+        className={css.sidechatScroll}
+        data-genui-surface="dsh-better-sidebar/sidechat"
+        onScroll={handleTranscriptScroll}
+      >
+        {/* The hidden head of the thread: the spacer holds the scroll space the
+            unmounted rows used to occupy (their DECLARED height — jsdom has no
+            layout, and a revealed row gives back exactly the height it frees),
+            and the control mounts one more step of history at a time. Neither
+            is rendered while the whole transcript is mounted, so a short thread
+            has no chrome at all. */}
+        {hiddenRowCount > 0 && (
+          <>
+            <div
+              className={css.sidechatSpacer}
+              data-sidechat-spacer=""
+              aria-hidden="true"
+              style={{ height: `${hiddenRowCount * TRANSCRIPT_HIDDEN_ROW_PX}px` }}
+            />
+            <button
+              type="button"
+              className={css.sidechatRevealEarlier}
+              data-sidechat-reveal-earlier=""
+              onClick={() => { setRevealedRows(value => value + TRANSCRIPT_REVEAL_STEP) }}
+            >
+              {t('sideChatRevealEarlier', { hidden: hiddenRowCount })}
+            </button>
+          </>
+        )}
         {/* The host delegate is what makes a local markdown link in a row
             clickable at all (see use-markdown-surface), scoped to this
             transcript so nothing outside it is claimed. */}
@@ -1552,6 +1653,19 @@ export function SideChatView(props: {
           )}
         </MarkdownDelegateProvider>
       </div>
+      {/* Only while the reader is AWAY from the tail: one tap returns to the
+          newest content and resumes following. It is not rendered at the tail
+          (nothing to return to), so it never covers a settled transcript. */}
+      {!followingTail && (
+        <button
+          type="button"
+          className={css.sidechatToLatest}
+          data-sidechat-to-bottom=""
+          onClick={returnToLatest}
+        >
+          {t('sideChatToLatest')}
+        </button>
+      )}
       {showThinking && (
         <div className={css.sidechatStatus}>
           <StateDot state="ongoing" size={8} />

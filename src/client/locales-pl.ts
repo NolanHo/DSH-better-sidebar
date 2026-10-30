@@ -438,6 +438,8 @@ export const pl: Record<string, string> = {
   sideChatPendingDrop: 'Ostatnie niezakończone pytanie następcze nie zostanie uwzględnione w zapisanej sesji',
   sideChatQueued: 'W kolejce',
   sideChatSending: 'Wysyłanie…',
+  sideChatRevealEarlier: 'Pokaż {hidden} wcześniejszych wierszy',
+  sideChatToLatest: 'Wróć do najnowszych',
   sideChatDequeue: 'Usuń z kolejki',
   sideChatRunError: 'Wykonanie nie powiodło się: {message}',
   sideChatModel: 'Model',

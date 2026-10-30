@@ -436,6 +436,8 @@ export const vi: Record<string, string> = {
   sideChatPendingDrop: 'Tin nhắn theo dõi chưa hoàn thành cuối cùng sẽ không được đưa vào phiên đã lưu',
   sideChatQueued: 'Đang xếp hàng',
   sideChatSending: 'Đang gửi…',
+  sideChatRevealEarlier: 'Hiện {hidden} dòng cũ hơn',
+  sideChatToLatest: 'Quay lại mới nhất',
   sideChatDequeue: 'Xóa khỏi hàng đợi',
   sideChatRunError: 'Chạy thất bại: {message}',
   sideChatModel: 'Mô hình',

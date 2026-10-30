@@ -428,6 +428,8 @@ export const ko: Record<string, string> = {
   sideChatPendingDrop: '마지막으로 완료되지 않은 후속 질문은 새 세션에 포함되지 않습니다',
   sideChatQueued: '대기 중',
   sideChatSending: '전송 중…',
+  sideChatRevealEarlier: '이전 {hidden}개 행 표시',
+  sideChatToLatest: '최신으로 돌아가기',
   sideChatDequeue: '대기열에서 제거',
   sideChatRunError: '실행 실패: {message}',
   sideChatModel: '모델',
