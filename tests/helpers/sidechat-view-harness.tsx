@@ -99,6 +99,12 @@ export interface SidechatHarness {
   /** Mutable wire values; set them before mount(). */
   wire: SidechatWire
   host: SidechatHost
+  /** Payloads of every `sidechat.prompt` request the view issued (a keyboard
+   *  gesture that "sends" is exactly one of these). */
+  promptCalls: Record<string, unknown>[]
+  /** Extra view props merged over the defaults at mount() — the seam for the
+   *  view's configurable behavior (`submitKey`). Set before mount(). */
+  extraProps: Record<string, unknown>
   /** Render the real SideChatView bound to thread 't1' under session 'root'. */
   mount: () => RenderedRoot
   /** Flush React work + the stub's resolved promises (default two rounds). */
@@ -135,8 +141,16 @@ export function installSidechatHarness(overrides: Partial<SidechatWire> = {}): S
   FakeSocket.instances = []
   vi.stubGlobal('WebSocket', FakeSocket)
 
-  vi.stubGlobal('fetch', async (url: string | URL) => {
+  const promptCalls: Record<string, unknown>[] = []
+
+  vi.stubGlobal('fetch', async (url: string | URL, init?: RequestInit) => {
     const method = String(url).split('/').pop()
+    if (method === 'sidechat.prompt') {
+      // Recorded, never rejected: a keyboard gesture either reaches this route
+      // (it submitted) or it does not.
+      promptCalls.push(init?.body === undefined ? {} : JSON.parse(String(init.body)) as Record<string, unknown>)
+      return jsonResponse({ ok: true, value: { accepted: true } })
+    }
     if (method === 'sidechat.events') {
       return jsonResponse({ ok: true, value: { events: wire.events, live: wire.live, pending: wire.pending } })
     }
@@ -171,6 +185,8 @@ export function installSidechatHarness(overrides: Partial<SidechatWire> = {}): S
 
   const tab: SidebarTab = { id: 'tab1', type: 'sidechat', title: '线程一', meta: { threadId: 't1' } }
   const props = { ctx, scope: { sessionId: 'root', cwd: '/p' }, tab, visible: true }
+  /** View props a spec overrides before mount() (the configurable seams). */
+  const extraProps: Record<string, unknown> = {}
 
   let mounted: RenderedRoot | null = null
   const composer = (): HTMLTextAreaElement => {
@@ -182,8 +198,10 @@ export function installSidechatHarness(overrides: Partial<SidechatWire> = {}): S
   return {
     wire,
     host,
+    promptCalls,
+    extraProps,
     mount: () => {
-      mounted = renderRoot(createElement(SideChatView, props))
+      mounted = renderRoot(createElement(SideChatView, { ...props, ...extraProps }))
       return mounted
     },
     flush: async (rounds = 2) => {

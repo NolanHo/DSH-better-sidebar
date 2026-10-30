@@ -64,6 +64,7 @@ import {
   type TerminalBlockLabels,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { markdownTextProps } from './markdown-labels.tsx'
+import { COMPOSITION_END_GRACE_MS, isSubmitGesture } from './composer-keymap.ts'
 import { SidechatAssistantRow, type SidechatRowSurfaceBinding } from './SidechatAssistantRow.tsx'
 import { rewriteProseLocalImageUrls } from './markdown-images.ts'
 import { hostTransportBase } from './desktop-env.ts'
@@ -100,6 +101,7 @@ import { useSidechatPush } from './use-sidechat-push.ts'
 import { t } from './locales.ts'
 import type { SessionScope } from './api.ts'
 import type { SidebarTab } from './state.ts'
+import { SIDECHAT_SUBMIT_KEY_DEFAULT, type SidechatSubmitKey } from '../prefs-shared.ts'
 import css from './SideChatView.module.css'
 
 /**
@@ -115,6 +117,22 @@ const POLL_MS = 15_000
 const PUSH_DEBOUNCE_MS = 80
 /** Textarea auto-grow ceiling (px) — the composer scrolls beyond it. */
 const COMPOSER_MAX_HEIGHT = 132
+
+/**
+ * Run one callback on the next animation frame, or on the next macrotask when
+ * the environment has no `requestAnimationFrame` (jsdom without a visual
+ * timer). Returns the cancel handle.
+ * @param callback - the deferred work.
+ * @returns the disposer that cancels a still-pending frame.
+ */
+function nextFrame(callback: () => void): () => void {
+  if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+    const handle = window.requestAnimationFrame(() => { callback() })
+    return () => { window.cancelAnimationFrame(handle) }
+  }
+  const handle = window.setTimeout(callback, 0)
+  return () => { window.clearTimeout(handle) }
+}
 
 /** The thread a tab is bound to (durable in tab.meta across refreshes). */
 export function sidechatThreadIdOf(tab: SidebarTab): string | undefined {
@@ -629,8 +647,15 @@ export function SideChatView(props: {
   scope: SessionScope
   tab: SidebarTab
   visible: boolean
+  /** Which gesture submits the draft: a plain `Enter` (the default, host
+   *  semantics) or exactly `Cmd+Enter` / `Ctrl+Enter`. The side card settings
+   *  page feeds it from the side-chat feature's own preferences (see
+   *  `sidechatSubmitKeyOf` in prefs.ts); absent reads the default, which keeps
+   *  every existing composition unchanged. */
+  submitKey?: SidechatSubmitKey
 }): React.ReactNode {
   const { ctx, scope, tab, visible } = props
+  const submitKey = props.submitKey ?? SIDECHAT_SUBMIT_KEY_DEFAULT
   const rowLabels = useMemo<RowLabels>(() => {
     // Shared Block chrome: copy buttons reuse the sidebar's copy pair, the
     // collapse/expand family is common to every Block kind.
@@ -811,6 +836,13 @@ export function SideChatView(props: {
     chatSurfaceRef(element)
   }, [chatSurfaceRef])
   const composerRef = useRef<HTMLTextAreaElement | null>(null)
+  /** The IME guard's live composition flag (tracked from the textarea's own
+   *  composition events: some engines only signal a composition there). */
+  const composingRef = useRef(false)
+  /** When the composition-end grace window closes (see
+   *  {@link COMPOSITION_END_GRACE_MS}: Safari delivers the composition-closing
+   *  keydown AFTER `compositionend`). */
+  const composingUntilRef = useRef(0)
 
   const summary = threadId === undefined ? undefined : list.byId[threadId]
   const running = summary?.running === true
@@ -1253,12 +1285,32 @@ export function SideChatView(props: {
     }
   }
 
-  const growComposer = (): void => {
+  /** Fit the textarea to its draft (up to the ceiling). Reading `scrollHeight`
+   *  forces a synchronous layout flush, so this only ever runs from a frame
+   *  scheduled by {@link scheduleComposerGrow}, never inline in a keystroke. */
+  const growComposer = useCallback((): void => {
     const field = composerRef.current
     if (field === null) return
     field.style.height = '0px'
     field.style.height = `${Math.min(field.scrollHeight, COMPOSER_MAX_HEIGHT)}px`
-  }
+  }, [])
+  /** The cancel handle of the pending auto-grow frame (coalesced: one frame
+   *  per burst of keystrokes). */
+  const growCancelRef = useRef<(() => void) | undefined>(undefined)
+  /** Schedule one auto-grow on the next frame: the keystroke that changed the
+   *  draft must not pay for the layout flush. A keystroke arriving before the
+   *  frame is coalesced into that frame, which reads the LATEST draft. */
+  const scheduleComposerGrow = useCallback((): void => {
+    if (growCancelRef.current !== undefined) return
+    growCancelRef.current = nextFrame(() => {
+      growCancelRef.current = undefined
+      growComposer()
+    })
+  }, [growComposer])
+  useEffect(() => () => {
+    growCancelRef.current?.()
+    growCancelRef.current = undefined
+  }, [])
 
   // Capture a binding generation, not a mutable "current session" fallback.
   // A deferred slider action from an old row must fail even after A → B → A.
@@ -1284,9 +1336,24 @@ export function SideChatView(props: {
       throw cause
     }
   }, [surfaceBinding, fetchThread, fetchInfo])
-  const genuiRowSurface: SidechatRowSurfaceBinding = {
-    service: ctx.get('betterSidebar'), threadId, visible, sendPrompt: sendSurfacePrompt,
-  }
+  /** The GenUI binding every transcript row shares (identity matters: the row
+   *  memo below must not rebuild a row for an unchanged thread/visibility). */
+  const genuiRowSurface = useMemo<SidechatRowSurfaceBinding>(
+    () => ({ service: ctx.get('betterSidebar'), threadId, visible, sendPrompt: sendSurfacePrompt }),
+    [ctx, threadId, visible, sendSurfacePrompt],
+  )
+  /**
+   * The rendered transcript. Memoized by its INPUTS (`rows` are reused by
+   * object identity across pushes, so an unrelated state change — a composer
+   * keystroke above all — reuses the same React elements: React bails out of
+   * an identical element, and no row renderer (`toolArgsSummary`'s JSON parse,
+   * `formatTokens`, the markdown pass) runs again for a row that did not
+   * change.
+   */
+  const rowNodes = useMemo(
+    () => rows.map(row => renderRow(row, rowLabels, rowSurface, genuiRowSurface)),
+    [rows, rowLabels, rowSurface, genuiRowSurface],
+  )
 
   const handleSend = async (): Promise<void> => {
     const text = composer.trim()
@@ -1447,7 +1514,7 @@ export function SideChatView(props: {
             clickable at all (see use-markdown-surface), scoped to this
             transcript so nothing outside it is claimed. */}
         <MarkdownDelegateProvider openFile={openChatFile}>
-          {rows.map(row => renderRow(row, rowLabels, rowSurface, genuiRowSurface))}
+          {rowNodes}
           {/* The unclaimed inbox: accepted messages whose claim has not logged
               them yet. The same bubble surface (and markdown pass) as a
               durable user row, plus the state word and the dequeue button. */}
@@ -1509,10 +1576,32 @@ export function SideChatView(props: {
           rows={1}
           onChange={event => {
             setComposer(event.target.value)
-            growComposer()
+            scheduleComposerGrow()
+          }}
+          onCompositionStart={() => { composingRef.current = true }}
+          onCompositionEnd={() => {
+            composingRef.current = false
+            composingUntilRef.current = Date.now() + COMPOSITION_END_GRACE_MS
           }}
           onKeyDown={event => {
-            if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return
+            // The submit contract (and the IME guard that outranks it) lives in
+            // composer-keymap.ts; the legacy signals only exist on the native
+            // event.
+            const native = event.nativeEvent
+            const submits = isSubmitGesture(
+              {
+                key: event.key,
+                shiftKey: event.shiftKey,
+                metaKey: event.metaKey,
+                ctrlKey: event.ctrlKey,
+                isComposing: native.isComposing,
+                keyCode: native.keyCode,
+              },
+              submitKey,
+              composingRef.current,
+              composingUntilRef.current,
+            )
+            if (!submits) return
             event.preventDefault()
             void handleSend()
           }}
