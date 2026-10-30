@@ -4,6 +4,9 @@
 
 ### 未发布
 
+- ▶️ **运行中的侧边对话可以同时「发送」和「停止」**：composer 此前是 `running ? 停止 : 发送` 的二元切换——运行中发送按钮直接消失，读者以为不能追问（而键盘 Enter 一直能发，宿主会把消息收进线程的收件箱）。现在运行中两个控件同时留在 composer bar：发送照常排队（恰好一次 `sidechat.prompt`、不会 cancel），停止只 cancel、不发送。可用性按控件各自判断：草稿只决定发送是否可用，**不会**让停止变灰（`busy` 才同时禁两者）；停止之后草稿与发送按钮都保留。
+  - 🧪 测试：`tests/sidechat-send-while-running.spec.tsx`（并存且都不隐藏、发送只排队不取消、停止只取消、空草稿只禁发送）。
+
 - 📐 **侧边对话的文字不再和正文脱节：整屏跟随宿主的「内容字号」设置**：转录正文（用户气泡 / 助手叙述 / 队列气泡）此前写死 `14px/22px`，chrome（工具与思考行、原始工具文本、用量尾行、交付卡标题与行、提示行、错误条与失败行、队列 meta）写死 `12px/18px`；读者把内容字号调大时只有 markdown 正文变大，周围这些辅助行纹丝不动，层级与节奏就散了。现在正文走主字号轴 `--dsh-content-font-size` + `--dsh-content-font-delta`，chrome 走次级轴 `--dsh-content-font-size-secondary` + `--dsh-content-font-delta-secondary`（与宿主 `MessageItem` 同一套写法），颜色 / 间距 / 气泡几何逐条不动，原始工具文本仍保留 `--dsw-font-mono`。`docs/external-plugin-guide.md` §12 同步补上这条令牌边界（`--dsh-content-font-*` 只准出现在 type 声明里）。
   - 🧪 测试：`tests/sidechat-typography-contract.spec.tsx` 钉住 13 条规则的字号轴、固定 12/13/14px 组合令牌退役、颜色字面量与几何快照不变、以及「内容字号变量只出现在 `font`/`font-size`/`line-height`」。
 

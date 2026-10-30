@@ -1822,10 +1822,16 @@ export function SideChatView(props: {
               dense
             />
           </ComposerTip>
-          {running ? (
+          {/* Stopping and sending are TWO actions, not one ternary: while a turn
+              runs the reader can still queue a follow-up (the host accepts it
+              into the thread's inbox — the keyboard path always could), so the
+              send action stays mounted beside an independent stop control.
+              Their availability is decided per control: the draft only gates
+              sending, and `busy` alone gates both. The stop control exists only
+              while the thread runs. */}
+          {running && (
             <ComposerTip label={t('sideChatCancelTitle')}>
               <button
-                key="stop"
                 type="button"
                 className={css.sidechatSendBtn}
                 onClick={() => void handleCancel()}
@@ -1835,20 +1841,18 @@ export function SideChatView(props: {
                 <IconStopFillRegular />
               </button>
             </ComposerTip>
-          ) : (
-            <ComposerTip label={t('sideChatSend')}>
-              <button
-                key="send"
-                type="button"
-                className={css.sidechatSendBtn}
-                onClick={() => void handleSend()}
-                disabled={composer.trim() === '' || busy !== null}
-                aria-label={t('sideChatSend')}
-              >
-                <IconSendOutlineRegular size={16} />
-              </button>
-            </ComposerTip>
           )}
+          <ComposerTip label={t('sideChatSend')}>
+            <button
+              type="button"
+              className={css.sidechatSendBtn}
+              onClick={() => void handleSend()}
+              disabled={composer.trim() === '' || busy !== null}
+              aria-label={t('sideChatSend')}
+            >
+              <IconSendOutlineRegular size={16} />
+            </button>
+          </ComposerTip>
         </div>
       </div>
     </div>
