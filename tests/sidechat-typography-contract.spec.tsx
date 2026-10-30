@@ -449,8 +449,14 @@ describe('side chat typography: chrome follows the host content-font axis (D3)',
       '.sidechatRowCode must be `var(--dsw-font-mono, <fallback stack>)`: the token first, a fallback list after it',
     ).toMatch(MONO_STACK)
     // A single concrete family (no token) also satisfies "monospace", but it drops
-    // the skin's own choice — the assertion above is deliberately stricter.
-    expect(family, 'the fallback names a monospace family').toMatch(/ui-monospace|SFMono|Menlo|monospace/)
+    // the skin's own choice — the assertion above is deliberately stricter. The
+    // fallback may name a concrete stack OR the host's own code-font token
+    // (`--ds-font-family-code`, which is the host's monospace stack and the one
+    // it uses instead of a bare `monospace` keyword).
+    expect(family, 'the fallback names a real monospace source').toMatch(/ui-monospace|SFMono|Menlo|var\(--ds-font-family-code\)/)
+    // The host deliberately avoids a bare `monospace` tail (Windows CJK falls
+    // back to SimSun there), so this stack must not reintroduce one.
+    expect(family, 'the fallback must not end on a bare monospace keyword').not.toMatch(/,\s*monospace\s*;?\s*$/)
   })
 
   it('never leaves a monospace family on a bare, undefined token', () => {
