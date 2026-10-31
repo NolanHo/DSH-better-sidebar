@@ -4,6 +4,8 @@
 
 ### 未发布
 
+- 🧱 **侧边栏那些「一直没画出来」的边框回来了，并加了一条静态守卫**：CSS 变量在 computed-value 阶段解析，名字不存在会让**整条声明**失效——没有报错、没有提示。插件里有 6 处引用了宿主根本没定义的 `--dsw-alias-hairline`（模型按钮、可折叠行的引导竖线、相邻代码块之间的分隔线、composer 的兜底边框、以及 fork 横幅的卡片边与内部分隔），于是这些边线全部是空的。现在按视觉轻重换成宿主真实定义的 `--dsw-alias-border-l1` / `-l2`（composer 保留 `-l2-darkmode-thin`，只换兜底）。另加 `tests/css-host-tokens.spec.ts`：扫描 `src/client/**/*.css` 里所有 `var(--dsw-…)`，不带兜底的引用必须命中宿主令牌快照或插件自己声明的名字；已有的三处同类欠账（`--dsw-alias-danger` / `--dsw-alias-bg-l2` / `--dsw-font-xs-regular-13`）逐条列在测试里并标注应替换的宿主令牌，任一欠账被修好而未从名单移除也会红（名单只准变短）。
+  - 🧪 测试：`tests/css-host-tokens.spec.ts`（先自检扫描面，再断言无未解析引用、欠账名单无过期条目；把任一修复改回 `--dsw-alias-hairline` 立即变红）。
 - 🌿 **侧边对话会说清它是从主会话的哪一刻分支出来的**：侧线程的日志以父会话整段历史作为 fork 种子开头，而 `sidechat.events` 路由在最后一个 inherited `session/end-seed` 标记处把它切掉——于是转录直接从侧问开始，读者看不出自己是从哪个主栏问题分支出来的，也看不到分支前主栏刚答了什么（父前缀从不过线，客户端无法自行重建）。现在**首拉**多带一个增量字段 `fork: { cutSeq, user?: {seq,text}, assistant?: {seq,text} }`：`cutSeq` 是切点标记自己的 seq（与转录的切刀同一个边界），`user` 取切点前最后一条**真实**用户消息（压缩检查点那种 replacement 不算，别把摘要当成读者问的话；运行时注入的 `time-context` / `tmux-context` / `plugin:…` 这类「用户消息」也不算，倒扫时跳过；只有图片的提问不出现该字段），`assistant` 取切点前最后一条 assistant 消息的 text 块（推理绝不泄漏），两段各自截头保留（提问 ≤400 字符、回答 ≤240）。delta 拉取不带该字段，`events`/`live`/`pending`/`truncated` 形状与取值不变。客户端在转录滚动区顶部、首行之前渲染一个默认收起的 `<details data-sidechat-fork-point>`：行上是「从主会话分支」+ 主栏那个问题 + 父会话标题；展开后是「分支前主会话的回答」+ 那段回答。两个文案进全部 21 份词典。
   - 🧪 测试：`tests/sidechat-fork-route.spec.ts`（首拉带 cutSeq/user/assistant、events 仍是切后尾巴、压缩检查点被跳过、取最后一个 inherited 标记、截头保留、推理不泄漏、图片提问不出现 user、空种子只剩 cutSeq、无继承标记不带字段、delta 不带字段）与 `tests/sidechat-fork-point.spec.tsx`（默认收起且位于首行之上、行上三个信息、展开体里的回答与标题、无字段/空字段不出横幅、不是转录行也不改变行数）。
 

@@ -55,7 +55,7 @@
   flex: 0 1 auto;
   min-width: 0;
   padding: 1px 8px;
-  border: 1px solid var(--dsw-alias-hairline);
+  border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 999px;
   background: transparent;
   color: var(--dsw-alias-label-secondary);
@@ -467,7 +467,7 @@
 .sidechatRowBody {
   margin: 2px 0 4px 7px;
   padding: 2px 0 2px 10px;
-  border-left: 1px solid var(--dsw-alias-hairline);
+  border-left: 1px solid var(--dsw-alias-border-l1);
 }
 
 .sidechatRowProse {
@@ -506,7 +506,7 @@
 }
 
 .sidechatRowCode + .sidechatRowCode {
-  border-top: 1px solid var(--dsw-alias-hairline);
+  border-top: 1px solid var(--dsw-alias-border-l1);
 }
 
 /* Host Block atoms (terminal/diff/read) inside a row body draw their own
@@ -666,7 +666,7 @@
   gap: 4px;
   margin: 0 8px 8px;
   padding: 8px 8px 6px 14px;
-  border: 1px solid var(--dsw-alias-border-l2-darkmode-thin, var(--dsw-alias-hairline));
+  border: 1px solid var(--dsw-alias-border-l2-darkmode-thin, var(--dsw-alias-border-l2));
   border-radius: 16px;
   background: var(--dsw-specific-input-major, var(--dsw-alias-bg-base));
   box-shadow: var(--dsw-shadow-lv2, none);
@@ -769,7 +769,7 @@
   flex: none;
   min-width: 0;
   padding: 6px 10px;
-  border: 1px solid var(--dsw-alias-hairline);
+  border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 8px;
   background: var(--dsw-alias-bg-layer-2);
   font-size: var(--dsh-content-font-size-secondary, 13px);
@@ -828,7 +828,7 @@
 .sidechatForkBody {
   margin-top: 6px;
   padding-top: 6px;
-  border-top: 1px solid var(--dsw-alias-hairline);
+  border-top: 1px solid var(--dsw-alias-border-l1);
   min-width: 0;
 }
 
