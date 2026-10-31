@@ -761,6 +761,34 @@ export function SideChatView(props: {
       read: { ...shared, ...codeCard, window: (shown: number, total: number) => t('sideChatBlockWindow', { shown, total }) },
     }
   }, [])
+  /**
+   * Remote-image previews: the host's `MarkdownImage` wraps an `<img>` in its
+   * preview button and mounts `ImageLightbox` ONLY when the surrounding
+   * `MarkdownDelegateProvider` supplies `fileImages` — the main conversation
+   * always did, the side chat never did, so the same screenshot enlarged in the
+   * main pane and did nothing here.
+   *
+   * `resolve` declines on purpose. It is the LOCAL-image vocabulary (a decoded
+   * workspace path → displayable URL); the transcript already rewrites local
+   * destinations into session media URLs before rendering (markdown-images.ts),
+   * and the host only grows a hover preview card on an image LINK when
+   * `resolve` answers with a URL — declining is what keeps a `[shot](a.png)`
+   * link a plain file button.
+   *
+   * Identity matters: the provider memoizes its delegate on this object, and a
+   * fresh one per render would push a new context value through every memoized
+   * markdown row on every keystroke.
+   */
+  const fileImages = useMemo(() => ({
+    resolve: (): string | undefined => undefined,
+    labels: {
+      open: t('sideChatImageOpen'),
+      loading: t('sideChatImageLoading'),
+      failed: t('sideChatImageFailed'),
+      dialog: t('sideChatImageDialog'),
+      close: t('sideChatImageClose'),
+    },
+  }), [])
 
   // The session list feed: thread rows (the composer-bar thread menu) + running states.
   const list = useSyncExternalStore(
@@ -1781,8 +1809,10 @@ export function SideChatView(props: {
         )}
         {/* The host delegate is what makes a local markdown link in a row
             clickable at all (see use-markdown-surface), scoped to this
-            transcript so nothing outside it is claimed. */}
-        <MarkdownDelegateProvider openFile={openChatFile}>
+            transcript so nothing outside it is claimed. `fileImages` is the
+            preview vocabulary that turns an image into the host's lightbox
+            button; `resolve` declines (see the view's `fileImages` memo). */}
+        <MarkdownDelegateProvider openFile={openChatFile} fileImages={fileImages}>
           {rowNodes}
           {/* The unclaimed inbox: accepted messages whose claim has not logged
               them yet. The same bubble surface (and markdown pass) as a
