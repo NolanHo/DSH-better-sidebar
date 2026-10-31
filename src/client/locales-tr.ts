@@ -471,6 +471,8 @@ export const tr: Record<string, string> = {
   sideChatBlockFailed: 'Başarısız',
   sideChatBlockDone: 'Tamamlandı',
   sideChatBlockNoOutput: '(çıktı yok)',
+  sideChatAttachmentImage: 'Görsel eki',
+  sideChatAttachmentImageFailed: 'Görsel yüklenemedi',
   sideChatSearchNoResults: 'Sonuç yok',
   sideChatSearchPaths: '{shown} yol',
   sideChatSearchPathsTruncated: '{total} yolun {shown} tanesi gösteriliyor',

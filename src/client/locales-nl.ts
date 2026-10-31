@@ -469,6 +469,8 @@ export const nl: Record<string, string> = {
   sideChatBlockFailed: 'Mislukt',
   sideChatBlockDone: 'Voltooid',
   sideChatBlockNoOutput: '(geen uitvoer)',
+  sideChatAttachmentImage: 'Afbeeldingsbijlage',
+  sideChatAttachmentImageFailed: 'Afbeelding kon niet worden geladen',
   sideChatSearchNoResults: 'Geen resultaten',
   sideChatSearchPaths: '{shown} paden',
   sideChatSearchPathsTruncated: '{shown} van {total} paden getoond',

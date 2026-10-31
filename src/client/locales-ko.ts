@@ -463,6 +463,8 @@ export const ko: Record<string, string> = {
   sideChatBlockFailed: '실패',
   sideChatBlockDone: '완료',
   sideChatBlockNoOutput: '(출력 없음)',
+  sideChatAttachmentImage: '이미지 첨부',
+  sideChatAttachmentImageFailed: '이미지를 불러올 수 없습니다',
   sideChatSearchNoResults: '결과 없음',
   sideChatSearchPaths: '경로 {shown}개',
   sideChatSearchPathsTruncated: '경로 {shown} / {total}개 표시',

@@ -454,6 +454,8 @@ export const sv: Record<string, string> = {
   sideChatBlockFailed: 'Misslyckades',
   sideChatBlockDone: 'Klar',
   sideChatBlockNoOutput: '(ingen utdata)',
+  sideChatAttachmentImage: 'Bildbilaga',
+  sideChatAttachmentImageFailed: 'Bilden kunde inte läsas in',
   sideChatSearchNoResults: 'Inga resultat',
   sideChatSearchPaths: '{shown} sökvägar',
   sideChatSearchPathsTruncated: 'Visar {shown} av {total} sökvägar',

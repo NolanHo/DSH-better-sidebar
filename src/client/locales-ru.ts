@@ -469,6 +469,8 @@ export const ru: Record<string, string> = {
   sideChatBlockFailed: 'Ошибка',
   sideChatBlockDone: 'Готово',
   sideChatBlockNoOutput: '(нет вывода)',
+  sideChatAttachmentImage: 'Вложение-изображение',
+  sideChatAttachmentImageFailed: 'Не удалось загрузить изображение',
   sideChatSearchNoResults: 'Нет результатов',
   sideChatSearchPaths: 'Путей: {shown}',
   sideChatSearchPathsTruncated: 'Показано {shown} из {total} путей',

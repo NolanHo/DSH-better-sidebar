@@ -471,6 +471,8 @@ export const th: Record<string, string> = {
   sideChatBlockFailed: 'ล้มเหลว',
   sideChatBlockDone: 'เสร็จสิ้น',
   sideChatBlockNoOutput: '(ไม่มีเอาต์พุต)',
+  sideChatAttachmentImage: 'รูปภาพแนบ',
+  sideChatAttachmentImageFailed: 'โหลดรูปภาพไม่สำเร็จ',
   sideChatSearchNoResults: 'ไม่พบผลลัพธ์',
   sideChatSearchPaths: '{shown} เส้นทาง',
   sideChatSearchPathsTruncated: 'แสดง {shown} จาก {total} เส้นทาง',

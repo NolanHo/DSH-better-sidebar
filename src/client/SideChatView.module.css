@@ -759,6 +759,69 @@
 }
 
 /* ── motion vocabulary (crossfade only, ≤200ms; loops reduced-motion off) */
+/* Image / file content blocks (D13): a row's own attachments sit under its
+ * text, wrapped so a wide screenshot still leaves the column intact. */
+.sidechatAttachments {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+/* An assistant message's attachment is a row of its own; the mount box already
+ * spaces it, so it needs no extra margin. */
+.sidechatAttachmentRow {
+  display: flex;
+}
+
+.sidechatAttachmentThumb {
+  flex: none;
+  width: 96px;
+  height: 96px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--dsw-alias-bg-base);
+}
+
+/* A declined read is a reader-visible fact, not a broken image: one quiet
+ * line in the chip's own typography. */
+.sidechatAttachmentFailed {
+  font-size: var(--dsh-content-font-size-secondary, 13px);
+  line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
+  font-family: var(--dsw-font-family);
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* The main conversation's file card: type glyph, name, size. */
+.sidechatAttachmentFile {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 3px 6px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 6px;
+  font-size: var(--dsh-content-font-size-secondary, 13px);
+  line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
+  font-family: var(--dsw-font-family);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.sidechatAttachmentName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-primary);
+}
+
+.sidechatAttachmentSize {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+}
+
 @keyframes sidechatRowIn {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }

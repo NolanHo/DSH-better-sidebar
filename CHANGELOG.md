@@ -4,6 +4,9 @@
 
 ### 未发布
 
+- 🖼 **侧边对话里的图片与文件内容块都能看到了**：转录映射原先只保留 `text` 块，于是读者附上的截图、工具产出的图片、以及交给模型的文档在这里全部消失——转录等于宣称这段对话是纯文本。现在 user / assistant / tool-result 三处来源的 `image` 块都出缩略图，字节**只**走 `ctx.get('remote').session.attachment({ sessionId, attachmentId })`（`sessionId` 取线程自己的 id——侧线程不是客户端保留的会话，宿主 `uiConversation.imageUrl` 那条路对它无效），base64 → `Blob`（type 取该媒体的 mediaType）→ `URL.createObjectURL`，卸载时 revoke；同一个 attachmentId **只请求一次**，多个块共享一个请求与一个对象 URL。`file` 块渲染宿主同款芯片（名称 + 文件大小），**零 RPC**。读取被拒 / 抛错 / 组合里没有 remote 时渲染 `sideChatAttachmentImageFailed` 占位而不是坏图；畸形块（缺 `attachmentId` 或 `name`）整块跳过，不请求也不崩。两个文案进全部 21 份词典。
+  - 🧪 测试：`tests/sidechat-attachment-blocks.spec.tsx`（三处来源都出缩略图、同一附件只请求一次且共享一个 URL、绝不经过 `uiConversation`、三种失败都出占位且不产生 `<img>`、文件块零 RPC 且大小走宿主格式化、畸形块跳过、卸载时 revoke 全部对象 URL）。
+
 - 🔧 **折叠的工具行不再拿原始参数 JSON 当摘要**：`toolArgsSummary` 只认 `command` / `file_path` / `path` / `pattern` / `query` / `url` / `prompt` 这几个键，认不出就回退**整段原始 JSON**——于是 `{"custom":"v"}` 这种不认识形状的工具行，折叠状态显示的是转义引号而不是任何可读信息。现在没有识别键时取**第一个字符串字段**（或第一个数组字段的元素，按对象自身顺序），三者都没有（全是数字/布尔/嵌套对象）就返回空摘要而不是 JSON；「有识别键但值为空白」与「参数根本不是对象（不可解析 / 裸数组）」仍按原样显示原始文本——前者是工具自己的词汇，后者除了原文没有别的可读内容。
   - 🧪 测试：`tests/sidechat-transcript.spec.ts`（`{"custom":"v"}` → `v`、无字符串/数组字段时摘要不含 `{` 与 `"`）。
 - 🔎 **grep / glob / web_search / web_fetch 的结果现在画成宿主的结构化卡片**：只有 bash / edit / write / read / present 有卡片，其余工具（含使用频率仅次于 bash 的这几个）落到原始参数 JSON 加原始输出。宿主本身也不解析那段文本：它读 `tool/result` 的 `meta` 再画真正的卡片，形状不够精确就退回通用行。现在侧边对话镜像了这套收窄——`grep` 的 `matches` / `glob` 的 `paths` 走宿主 `SearchBlock`（`data-search`），`web_search` 的 `search` / `web_fetch` 的 `fetch` 走宿主 `WebBlock`（`data-web`）；`meta` 缺失、`shape` 不对、字段缺失或类型不符、以及**失败的结果**，全部保持原有带标签的两段行（参数 / 结果），既不会空白也不会出现半张卡。卡片的 chrome 全部取词典：复制按钮复用 `copy` / `copied`，计数摘要用函数型文案（`{shown}` / `{total}` / `{files}`），8 个新 key 进全部 21 份词典。

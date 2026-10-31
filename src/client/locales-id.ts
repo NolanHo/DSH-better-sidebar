@@ -469,6 +469,8 @@ export const id: Record<string, string> = {
   sideChatBlockFailed: 'Gagal',
   sideChatBlockDone: 'Selesai',
   sideChatBlockNoOutput: '(tanpa output)',
+  sideChatAttachmentImage: 'Lampiran gambar',
+  sideChatAttachmentImageFailed: 'Gambar gagal dimuat',
   sideChatSearchNoResults: 'Tidak ada hasil',
   sideChatSearchPaths: '{shown} jalur',
   sideChatSearchPathsTruncated: 'Menampilkan {shown} dari {total} jalur',

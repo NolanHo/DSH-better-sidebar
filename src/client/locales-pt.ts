@@ -454,6 +454,8 @@ export const pt: Record<string, string> = {
   sideChatBlockFailed: 'Falhou',
   sideChatBlockDone: 'Concluído',
   sideChatBlockNoOutput: '(sem saída)',
+  sideChatAttachmentImage: 'Anexo de imagem',
+  sideChatAttachmentImageFailed: 'Não foi possível carregar a imagem',
   sideChatSearchNoResults: 'Nenhum resultado',
   sideChatSearchPaths: '{shown} caminhos',
   sideChatSearchPathsTruncated: 'Mostrando {shown} de {total} caminhos',

@@ -472,6 +472,8 @@ export const ar: Record<string, string> = {
   sideChatBlockFailed: 'فشل',
   sideChatBlockDone: 'اكتمل',
   sideChatBlockNoOutput: '(لا يوجد إخراج)',
+  sideChatAttachmentImage: 'مرفق صورة',
+  sideChatAttachmentImageFailed: 'تعذّر تحميل الصورة',
   sideChatSearchNoResults: 'لا نتائج',
   sideChatSearchPaths: '{shown} مسارًا',
   sideChatSearchPathsTruncated: 'عرض {shown} من {total} مسارًا',

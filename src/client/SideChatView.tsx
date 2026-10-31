@@ -72,6 +72,7 @@ import { markdownLabels, markdownTextProps } from './markdown-labels.tsx'
 import { producedFilePaths, resolveProducedPath } from './sidechat-mentions.ts'
 import { COMPOSITION_END_GRACE_MS, compositionPhase, isGuardedKeydown, isSubmitGesture } from './composer-keymap.ts'
 import { SidechatAssistantRow, type SidechatRowSurfaceBinding } from './SidechatAssistantRow.tsx'
+import { SidechatAttachments } from './SidechatAttachments.tsx'
 import { rewriteProseLocalImageUrls } from './markdown-images.ts'
 import { hostTransportBase } from './desktop-env.ts'
 import { baseName, resolveSidebarPath } from './paths.ts'
@@ -98,6 +99,7 @@ import {
   toolArgsSummary,
   transcriptRows,
   sidechatRowKey,
+  type SidechatAttachment,
   type SidechatToolCard,
   type SidechatTranscriptRow,
 } from './sidechat-transcript.ts'
@@ -551,6 +553,9 @@ interface RowSurface {
    *  sidechat-mentions.ts). Undefined when the thread has produced nothing, so
    *  the renderer keeps every token inert code. */
   mentions: MarkdownFileMentions | undefined
+  /** Render one row's `image` / `file` blocks (D13); the read is bound to the
+   *  thread that owns the referencing log. */
+  attachments: (list: readonly SidechatAttachment[]) => React.ReactNode
 }
 
 /** One row renderer (React keys ride the source event seq). `surface` is the
@@ -567,6 +572,16 @@ function renderRow(row: SidechatTranscriptRow, labels: RowLabels, surface: RowSu
       return (
         <div key={key} className={css.sidechatUser}>
           <MarkdownText {...markdownTextProps(surface.rewrite(row), labels, surface.mentions)} />
+          {row.attachments === undefined || row.attachments.length === 0
+            ? null
+            : surface.attachments(row.attachments)}
+        </div>
+      )
+    case 'attachment':
+      // One content block of an assistant message, in block order.
+      return (
+        <div key={key} className={css.sidechatAttachmentRow}>
+          {surface.attachments([row.attachment])}
         </div>
       )
     case 'assistant':
@@ -685,24 +700,32 @@ function renderRow(row: SidechatTranscriptRow, labels: RowLabels, surface: RowSu
       // sections — raw arguments, then raw output — so a reader who expands
       // always knows which block is which (two unlabelled <pre>s of JSON next
       // to raw output was a wall of escaped quotes).
-      const body = row.card !== undefined
-        ? toolCardBody(row.card, row.executing === true, labels)
-        : (
-          <>
-            {row.args !== undefined && (
+      const resultAttachments = row.resultAttachments === undefined || row.resultAttachments.length === 0
+        ? null
+        : surface.attachments(row.resultAttachments)
+      const body = (
+        <>
+          {row.card !== undefined
+            ? toolCardBody(row.card, row.executing === true, labels)
+            : (
               <>
-                <div className={css.sidechatToolSectionLabel}>{t('sideChatToolArguments')}</div>
-                <pre className={css.sidechatRowCode}>{row.args}</pre>
+                {row.args !== undefined && (
+                  <>
+                    <div className={css.sidechatToolSectionLabel}>{t('sideChatToolArguments')}</div>
+                    <pre className={css.sidechatRowCode}>{row.args}</pre>
+                  </>
+                )}
+                {row.resultText !== undefined && (
+                  <>
+                    <div className={css.sidechatToolSectionLabel}>{t('sideChatToolResult')}</div>
+                    <pre className={css.sidechatRowCode}>{row.resultText}</pre>
+                  </>
+                )}
               </>
             )}
-            {row.resultText !== undefined && (
-              <>
-                <div className={css.sidechatToolSectionLabel}>{t('sideChatToolResult')}</div>
-                <pre className={css.sidechatRowCode}>{row.resultText}</pre>
-              </>
-            )}
-          </>
-        )
+          {resultAttachments}
+        </>
+      )
       return (
         <CollapsibleRow
           key={key}
@@ -712,7 +735,8 @@ function renderRow(row: SidechatTranscriptRow, labels: RowLabels, surface: RowSu
           mono
           streaming={row.executing === true}
           failed={row.failed}
-          {...(row.args === undefined && row.resultText === undefined && row.card === undefined ? {} : { children: body })}
+          {...(row.args === undefined && row.resultText === undefined && row.card === undefined
+            && resultAttachments === null ? {} : { children: body })}
         />
       )
     }
@@ -1306,6 +1330,17 @@ export function SideChatView(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [producedMentionKey, deliverableTitlePath, openDeliveredFile])
 
+  /** Render one row's `image` / `file` blocks. The byte read is addressed to
+   *  the THREAD whose log references the attachment (a side thread is not a
+   *  retained scope, so the chat image cache cannot serve it). */
+  const renderAttachments = useCallback(
+    (list: readonly SidechatAttachment[]): React.ReactNode => (
+      threadId === undefined
+        ? null
+        : <SidechatAttachments ctx={ctx} sessionId={threadId} attachments={list} />
+    ),
+    [ctx, threadId],
+  )
   const rowSurface = useMemo<RowSurface>(
     () => ({
       rewrite: rewriteRow,
@@ -1313,8 +1348,9 @@ export function SideChatView(props: {
       media: deliverableMediaUrl,
       resolvePath: deliverableTitlePath,
       mentions: fileMentions,
+      attachments: renderAttachments,
     }),
-    [rewriteRow, openDeliveredFile, deliverableMediaUrl, deliverableTitlePath, fileMentions],
+    [rewriteRow, openDeliveredFile, deliverableMediaUrl, deliverableTitlePath, fileMentions, renderAttachments],
   )
 
   /** The unclaimed inbox rows that still need a bubble: a pending message the

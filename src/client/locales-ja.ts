@@ -471,6 +471,8 @@ export const ja: Record<string, string> = {
   sideChatBlockFailed: '失敗',
   sideChatBlockDone: '完了',
   sideChatBlockNoOutput: '（出力なし）',
+  sideChatAttachmentImage: '画像の添付',
+  sideChatAttachmentImageFailed: '画像を読み込めませんでした',
   sideChatSearchNoResults: '結果なし',
   sideChatSearchPaths: '{shown} 件のパス',
   sideChatSearchPathsTruncated: '{shown} / {total} 件のパスを表示',

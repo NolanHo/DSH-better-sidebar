@@ -471,6 +471,8 @@ export const vi: Record<string, string> = {
   sideChatBlockFailed: 'Thất bại',
   sideChatBlockDone: 'Hoàn tất',
   sideChatBlockNoOutput: '(không có đầu ra)',
+  sideChatAttachmentImage: 'Tệp đính kèm hình ảnh',
+  sideChatAttachmentImageFailed: 'Không tải được ảnh',
   sideChatSearchNoResults: 'Không có kết quả',
   sideChatSearchPaths: '{shown} đường dẫn',
   sideChatSearchPathsTruncated: 'Hiển thị {shown} / {total} đường dẫn',

@@ -473,6 +473,8 @@ export const pl: Record<string, string> = {
   sideChatBlockFailed: 'Niepowodzenie',
   sideChatBlockDone: 'Zakończono',
   sideChatBlockNoOutput: '(brak wyniku)',
+  sideChatAttachmentImage: 'Załącznik obrazu',
+  sideChatAttachmentImageFailed: 'Nie udało się wczytać obrazu',
   sideChatSearchNoResults: 'Brak wyników',
   sideChatSearchPaths: 'Ścieżki: {shown}',
   sideChatSearchPathsTruncated: 'Pokazano {shown} z {total} ścieżek',

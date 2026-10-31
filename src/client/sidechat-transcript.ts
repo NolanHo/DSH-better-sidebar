@@ -91,7 +91,15 @@ export type SidechatTranscriptRow =
   /** `messageId` is the durable message identity the log records on the event
    *  (`data.id`); the view uses it to dedupe a still-pending inbox row against
    *  the durable row the claim eventually writes. Older logs may lack it. */
-  | { kind: 'user'; seq: number; text: string; messageId?: string }
+  | {
+    kind: 'user'
+    seq: number
+    text: string
+    messageId?: string
+    /** The message's `image` / `file` blocks, in content order (a bubble is one
+     *  visual unit, so they ride the row instead of becoming siblings). */
+    attachments?: readonly SidechatAttachment[]
+  }
   /** A context injection (the side boundary prompt + the parked in-progress
    *  snapshot, or any plugin-sourced context): rendered as one collapsible
    *  row, never as a user bubble. */
@@ -120,6 +128,8 @@ export type SidechatTranscriptRow =
     executing?: boolean
     /** Structured render payload (host Block atoms); absent = generic row. */
     card?: SidechatToolCard
+    /** `image` / `file` blocks of the paired result's content list. */
+    resultAttachments?: readonly SidechatAttachment[]
   }
   /** One `present` delivery (a compact deliverables card instead of a tool
    *  row). A `deliverables/presented` event with the same `callId` REPLACES
@@ -138,6 +148,44 @@ export type SidechatTranscriptRow =
    *  (`max-tokens`). One row per turn — the attempt's terminal finish reason and
    *  the `turn/end` that repeats it are the same event. */
   | { kind: 'terminal'; seq: number; reason: 'aborted' | 'max-tokens' }
+  /** One `image` / `file` content block of an ASSISTANT message, rendered in
+   *  block order: the assistant branch explodes a message per content block, so
+   *  an attachment needs its own row to keep that order. A USER message keeps
+   *  its blocks on the message's own row (`user.attachments`) — the bubble is
+   *  one visual unit. */
+  | {
+    kind: 'attachment'
+    seq: number
+    attachment: SidechatAttachment
+    contentBlockIndex?: number
+  }
+
+/**
+ * One image content block the transcript must show. The bytes are NOT part of
+ * the log — only the id is — so the read goes through the host Remote with the
+ * THREAD's own session id (see `SidechatAttachments`); a `uiConversation`
+ * image URL is never the source.
+ */
+export interface SidechatImageAttachment {
+  /** Opaque host id — the only key a byte read may use. */
+  attachmentId: string
+  /** The image's media type (becomes the Blob's `type`). */
+  mediaType: string
+  /** The producer's file name, when it recorded one (the thumbnail's alt). */
+  name?: string
+}
+
+/** One non-image file the model was given: a chip, never a byte read. */
+export interface SidechatFileAttachment {
+  name: string
+  /** Byte count for the size chip (absent when the producer recorded none). */
+  bytes?: number
+}
+
+/** An `image` or `file` content block, narrowed to what the transcript renders. */
+export type SidechatAttachment =
+  | { kind: 'image'; image: SidechatImageAttachment }
+  | { kind: 'file'; file: SidechatFileAttachment }
 
 /** Compact token count the way the main conversation prints usage
  *  (517 / 12.2K / 1.2M — the host's own formatter is not exported). */
@@ -157,9 +205,9 @@ export function formatDurationMs(ms: number): string {
   return `${Math.floor(whole / 60)}m${whole % 60}s`
 }
 
-/** Extract the visible text of a content-block list (`text` blocks verbatim,
- *  joined by blank lines); empty reads `…` so rows never render blank. */
-export function blockText(content: readonly unknown[]): string {
+/** The plain text of a content list (`text` blocks verbatim, joined by blank
+ *  lines), '' when it carries no text block at all. */
+function joinedText(content: readonly unknown[]): string {
   const parts: string[] = []
   for (const block of content) {
     if (block === null || typeof block !== 'object') continue
@@ -168,7 +216,13 @@ export function blockText(content: readonly unknown[]): string {
       parts.push(candidate.text)
     }
   }
-  const text = parts.join('\n\n')
+  return parts.join('\n\n')
+}
+
+/** Extract the visible text of a content-block list (`text` blocks verbatim,
+ *  joined by blank lines); empty reads `…` so rows never render blank. */
+export function blockText(content: readonly unknown[]): string {
+  const text = joinedText(content)
   return text === '' ? '…' : text
 }
 
@@ -272,6 +326,81 @@ function resultTextOf(data: Record<string, unknown>): string {
     }
   }
   return parts.join('\n')
+}
+
+/**
+ * Narrow one `image` / `file` content block. A block without the fields the
+ * transcript can actually render is SKIPPED (no row, no placeholder, no byte
+ * read): an image needs an `attachmentId` (the read key) and a `mediaType` (the
+ * Blob's type); a file needs its `name` (the chip's whole text).
+ * @param block - one content block from a message or a tool result.
+ * @returns the narrowed attachment, or undefined for anything else.
+ */
+function attachmentOf(block: unknown): SidechatAttachment | undefined {
+  if (block === null || typeof block !== 'object') return undefined
+  const { type, attachment } = block as { type?: unknown; attachment?: unknown }
+  if (attachment === null || typeof attachment !== 'object') return undefined
+  const ref = attachment as Record<string, unknown>
+  if (type === 'image') {
+    const { attachmentId, mediaType, name } = ref
+    if (typeof attachmentId !== 'string' || attachmentId === '') return undefined
+    if (typeof mediaType !== 'string' || mediaType === '') return undefined
+    return {
+      kind: 'image',
+      image: {
+        attachmentId,
+        mediaType,
+        ...(typeof name === 'string' && name !== '' ? { name } : {}),
+      },
+    }
+  }
+  if (type !== 'file') return undefined
+  const { name, bytes } = ref
+  if (typeof name !== 'string' || name === '') return undefined
+  return {
+    kind: 'file',
+    file: {
+      name,
+      ...(typeof bytes === 'number' && Number.isFinite(bytes) && bytes >= 0 ? { bytes } : {}),
+    },
+  }
+}
+
+/** Every renderable attachment of one content list, in block order. */
+function attachmentsOf(content: readonly unknown[]): SidechatAttachment[] {
+  const attachments: SidechatAttachment[] = []
+  for (const block of content) {
+    const attachment = attachmentOf(block)
+    if (attachment !== undefined) attachments.push(attachment)
+  }
+  return attachments
+}
+
+/** Whether two narrowed attachment lists render the same thing (the row-reuse
+ *  compare; the row objects keep their identity across polls when they do). */
+function attachmentsEqual(a: readonly SidechatAttachment[] | undefined, b: readonly SidechatAttachment[] | undefined): boolean {
+  if (a === b) return true
+  if (a === undefined || b === undefined || a.length !== b.length) return false
+  return a.every((attachment, index) => {
+    const peer = b[index]
+    if (peer === undefined || peer.kind !== attachment.kind) return false
+    if (attachment.kind === 'image') {
+      const left = attachment.image
+      const right = (peer as typeof attachment).image
+      return left.attachmentId === right.attachmentId && left.mediaType === right.mediaType && left.name === right.name
+    }
+    const left = attachment.file
+    const right = (peer as typeof attachment).file
+    return left.name === right.name && left.bytes === right.bytes
+  })
+}
+
+/** The `image` / `file` blocks of a tool/result message's content list (under
+ *  either logged shape — {@link resultBlocks}). */
+function resultAttachmentsOf(data: Record<string, unknown>): SidechatAttachment[] {
+  const message = data.message as { content?: unknown } | undefined
+  const blocks = resultBlocks(message?.content)
+  return blocks === undefined ? [] : attachmentsOf(blocks)
 }
 
 /** Parse the tool's raw arguments JSON to an object, or undefined (malformed
@@ -705,7 +834,11 @@ export function transcriptRows(entries: readonly SidebarHistoryEntry[], prev?: r
         break
       }
       case 'user/message': {
-        const text = blockText(Array.isArray(data.content) ? data.content : [])
+        const content = Array.isArray(data.content) ? data.content : []
+        const attachments = attachmentsOf(content)
+        // An attachment-only message is not a "…" row: the thumbnail IS its
+        // content (the placeholder exists for a message with nothing to show).
+        const text = attachments.length > 0 && joinedText(content) === '' ? '' : blockText(content)
         // The durable identity the pending-row dedupe keys on (absent on logs
         // written before the field existed, and on the loose fixtures).
         const messageId = typeof data.id === 'string' && data.id !== '' ? data.id : undefined
@@ -723,13 +856,27 @@ export function transcriptRows(entries: readonly SidebarHistoryEntry[], prev?: r
           if (source?.kind === 'user' && text.startsWith(`${SIDE_BOUNDARY_PROMPT}\n\n`)) {
             rows.push({ kind: 'injection', seq: event.seq, text: SIDE_BOUNDARY_PROMPT })
             const body = text.slice(SIDE_BOUNDARY_PROMPT.length + 2)
-            if (body !== '') rows.push({ kind: 'user', seq: event.seq, text: body, ...(messageId !== undefined ? { messageId } : {}) })
+            if (body !== '' || attachments.length > 0) {
+              rows.push({
+                kind: 'user',
+                seq: event.seq,
+                text: body,
+                ...(messageId !== undefined ? { messageId } : {}),
+                ...(attachments.length > 0 ? { attachments } : {}),
+              })
+            }
             break
           }
           rows.push({ kind: 'injection', seq: event.seq, text })
           break
         }
-        rows.push({ kind: 'user', seq: event.seq, text, ...(messageId !== undefined ? { messageId } : {}) })
+        rows.push({
+          kind: 'user',
+          seq: event.seq,
+          text,
+          ...(messageId !== undefined ? { messageId } : {}),
+          ...(attachments.length > 0 ? { attachments } : {}),
+        })
         break
       }
       case 'assistant/live-chunk': {
@@ -788,6 +935,10 @@ export function transcriptRows(entries: readonly SidebarHistoryEntry[], prev?: r
           }
           if (candidate.type === 'text' && typeof candidate.text === 'string' && candidate.text !== '') {
             return [{ kind: 'assistant', seq: event.seq, text: candidate.text, settled: true, contentBlockIndex }]
+          }
+          const attachment = attachmentOf(block)
+          if (attachment !== undefined) {
+            return [{ kind: 'attachment', seq: event.seq, attachment, contentBlockIndex }]
           }
           return []
         })
@@ -858,6 +1009,9 @@ export function transcriptRows(entries: readonly SidebarHistoryEntry[], prev?: r
         }
         const rowIndex = callId === undefined ? undefined : callRows.get(callId)
         const failed = data.error !== undefined
+        // A result's own image/file blocks belong to the row whose call
+        // produced them (they render inside its disclosed body).
+        const resultAttachments = resultAttachmentsOf(data)
         if (rowIndex !== undefined) {
           const row = rows[rowIndex]
           if (row !== undefined && row.kind === 'tool') {
@@ -872,9 +1026,10 @@ export function transcriptRows(entries: readonly SidebarHistoryEntry[], prev?: r
               resultText: resultText === '' ? row.resultText : resultText,
               executing: false,
               ...(card !== undefined ? { card } : { card: undefined }),
+              ...(resultAttachments.length > 0 ? { resultAttachments } : {}),
             }
           }
-        } else if (failed || resultText !== '') {
+        } else if (failed || resultText !== '' || resultAttachments.length > 0) {
           // Orphan result (no call row in the window): surface it so the row
           // stays informative and expandable.
           rows.push({
@@ -883,6 +1038,7 @@ export function transcriptRows(entries: readonly SidebarHistoryEntry[], prev?: r
             name: callId === undefined ? 'tool' : `tool:${callId.slice(0, 8)}`,
             failed,
             resultText: resultText === '' ? undefined : resultText,
+            ...(resultAttachments.length > 0 ? { resultAttachments } : {}),
           })
         }
         break
@@ -917,7 +1073,9 @@ export function transcriptRows(entries: readonly SidebarHistoryEntry[], prev?: r
 /** A single assistant event can have multiple text/reasoning blocks. Keep the
  * original block index (including skipped blocks), not a filtered row index. */
 export function sidechatRowKey(row: SidechatTranscriptRow): string {
-  return row.kind === 'assistant' || row.kind === 'reasoning'
+  // Per-content-block rows share their event's seq, so the block index is what
+  // keeps their keys unique (one message may carry several blocks).
+  return row.kind === 'assistant' || row.kind === 'reasoning' || row.kind === 'attachment'
     ? `${row.kind}:${row.seq}:${row.contentBlockIndex ?? 'unknown'}`
     : `${row.kind}:${row.seq}`
 }
@@ -930,6 +1088,7 @@ function rowsEqual(a: SidechatTranscriptRow, b: SidechatTranscriptRow): boolean 
     case 'user': {
       const other = b as typeof a
       return a.text === other.text && a.messageId === other.messageId
+        && attachmentsEqual(a.attachments, other.attachments)
     }
     case 'injection':
     case 'error': {
@@ -952,6 +1111,7 @@ function rowsEqual(a: SidechatTranscriptRow, b: SidechatTranscriptRow): boolean 
       const other = b as typeof a
       return a.name === other.name && a.failed === other.failed && a.args === other.args
         && a.resultText === other.resultText && a.executing === other.executing
+        && attachmentsEqual(a.resultAttachments, other.resultAttachments)
     }
     case 'deliverables': {
       const other = b as typeof a
@@ -969,6 +1129,11 @@ function rowsEqual(a: SidechatTranscriptRow, b: SidechatTranscriptRow): boolean 
     case 'terminal': {
       const other = b as typeof a
       return a.reason === other.reason
+    }
+    case 'attachment': {
+      const other = b as typeof a
+      return a.contentBlockIndex === other.contentBlockIndex
+        && attachmentsEqual([a.attachment], [other.attachment])
     }
   }
 }

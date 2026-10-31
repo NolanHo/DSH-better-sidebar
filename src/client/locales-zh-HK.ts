@@ -486,6 +486,8 @@ export const zhHK: Record<string, string> = {
   sideChatBlockFailed: '失敗',
   sideChatBlockDone: '完成',
   sideChatBlockNoOutput: '（無輸出）',
+  sideChatAttachmentImage: '圖片附件',
+  sideChatAttachmentImageFailed: '圖片讀取失敗',
   sideChatSearchNoResults: '無結果',
   sideChatSearchPaths: '{shown} 個路徑',
   sideChatSearchPathsTruncated: '顯示 {shown} / 共 {total} 個路徑',

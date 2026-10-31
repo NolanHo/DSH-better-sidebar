@@ -471,6 +471,8 @@ export const hi: Record<string, string> = {
   sideChatBlockFailed: 'विफल',
   sideChatBlockDone: 'पूर्ण',
   sideChatBlockNoOutput: '(कोई आउटपुट नहीं)',
+  sideChatAttachmentImage: 'छवि अनुलग्नक',
+  sideChatAttachmentImageFailed: 'छवि लोड नहीं हो सकी',
   sideChatSearchNoResults: 'कोई परिणाम नहीं',
   sideChatSearchPaths: '{shown} पथ',
   sideChatSearchPathsTruncated: '{total} में से {shown} पथ दिखाए जा रहे हैं',
