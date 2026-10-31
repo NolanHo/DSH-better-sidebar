@@ -43,7 +43,6 @@ export interface MarkdownCopyLabels {
 
 /** The nested `labels` prop the host renderer takes. */
 type HostMarkdownLabels = ComponentProps<typeof MarkdownText>['labels']
-
 /**
  * How many distinct label sets the identity cache keeps. The plugin renders
  * one label set per locale revision (zh/en plus the better-locale override,
@@ -87,6 +86,18 @@ function cachedLabels(labels: MarkdownCopyLabels): HostMarkdownLabels {
   }
   labelsCache.set(key, built)
   return built
+}
+
+/**
+ * The identity-stable nested host `labels` for one label-value set — the same
+ * object {@link markdownTextProps} threads into `MarkdownText`, exported for the
+ * host cards that render markdown of their OWN (the web card renders the
+ * provider's answer through `MarkdownText` and takes these labels directly).
+ * @param labels - the flat plugin label bag.
+ * @returns the nested host label object (cached by value).
+ */
+export function markdownLabels(labels: MarkdownCopyLabels): HostMarkdownLabels {
+  return cachedLabels(labels)
 }
 
 /** MarkdownText props carrying the nested chrome labels, plus — for a surface

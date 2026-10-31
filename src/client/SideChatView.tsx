@@ -54,17 +54,21 @@ import {
   Menu,
   MarkdownDelegateProvider,
   ReadBlock,
+  SearchBlock,
   StateDot,
   TerminalBlock,
   Tooltip,
+  WebBlock,
   classifyFileType,
   type DiffBlockLabels,
   type MarkdownFileMentions,
   type MenuEntry,
   type ReadBlockLabels,
+  type SearchBlockLabels,
   type TerminalBlockLabels,
+  type WebBlockLabels,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import { markdownTextProps } from './markdown-labels.tsx'
+import { markdownLabels, markdownTextProps } from './markdown-labels.tsx'
 import { producedFilePaths, resolveProducedPath } from './sidechat-mentions.ts'
 import { COMPOSITION_END_GRACE_MS, compositionPhase, isGuardedKeydown, isSubmitGesture } from './composer-keymap.ts'
 import { SidechatAssistantRow, type SidechatRowSurfaceBinding } from './SidechatAssistantRow.tsx'
@@ -310,6 +314,11 @@ interface RowLabels {
   terminal: TerminalBlockLabels
   diff: DiffBlockLabels
   read: ReadBlockLabels
+  /** The host search card (grep / glob results). */
+  search: SearchBlockLabels
+  /** The host web card (web_search / web_fetch results), whose answer is
+   *  rendered as markdown and therefore carries its own markdown chrome. */
+  web: WebBlockLabels
 }
 
 /** The host services this view reaches for archiving. Neither face lives on
@@ -488,6 +497,12 @@ function toolCardBody(card: SidechatToolCard, executing: boolean, labels: RowLab
   }
   if (card.type === 'diff') {
     return <DiffBlock diffs={card.diffs} labels={labels.diff} />
+  }
+  if (card.type === 'search') {
+    return <SearchBlock {...card.card} labels={labels.search} />
+  }
+  if (card.type === 'web') {
+    return <WebBlock {...card.card} labels={labels.web} />
   }
   return <ReadBlock label={card.label} lines={card.lines} totalLines={card.totalLines} lang={card.lang} labels={labels.read} />
 }
@@ -759,6 +774,31 @@ export function SideChatView(props: {
       },
       diff: { ...shared, ...codeCard },
       read: { ...shared, ...codeCard, window: (shown: number, total: number) => t('sideChatBlockWindow', { shown, total }) },
+      // The host cards' summaries are FUNCTIONS (the shown/total pair folds
+      // into one clause), so the two count pairs stay separate keys rather than
+      // a template with six placeholders. `noResults` is shared: an empty grep
+      // and an empty web search say the same thing to the reader.
+      search: {
+        ...shared,
+        pathsSummary: (shown: number, total: number, truncated: boolean) => t(
+          truncated ? 'sideChatSearchPathsTruncated' : 'sideChatSearchPaths',
+          { shown, total },
+        ),
+        matchesSummary: (shown: number, total: number, files: number, truncated: boolean) => t(
+          truncated ? 'sideChatSearchMatchesTruncated' : 'sideChatSearchMatches',
+          { shown, total, files },
+        ),
+        noResults: t('sideChatSearchNoResults'),
+      },
+      web: {
+        noResults: t('sideChatSearchNoResults'),
+        sourcesTruncated: t('sideChatWebSourcesTruncated'),
+        http: t('sideChatWebHttp'),
+        contentTruncated: t('sideChatWebContentTruncated'),
+        // The card renders the provider's answer as markdown of its own, so it
+        // needs the same nested chrome (and the cached identity) as the rows.
+        markdown: markdownLabels({ copyLabel: t('copy'), copiedLabel: t('copied'), ...codeCard }),
+      },
     }
   }, [])
   /**

@@ -31,9 +31,26 @@
  * disclosure row over the call — its delivery cards come from the turn-tail
  * deliverables, not from the call itself.)
  */
-import type { DiffHunk, ReadBlockLine } from '@deepseek-ai/dsh-client-ui-primitives'
+import type {
+  DiffHunk,
+  ReadBlockLine,
+  SearchBlockProps,
+  SearchFileGroup,
+  WebBlockProps,
+  WebSourceView,
+} from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SidebarHistoryEntry } from '../context-types.ts'
 import { isContextInjectionMessage, SIDE_BOUNDARY_PROMPT, threadOwnLogEvents } from '../sidechat-core.ts'
+
+/** {@link Omit} that distributes over a union, so a discriminated props union
+ *  keeps its `kind` discriminant (the host's card models use the same trick). */
+type DistributiveOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : never
+
+/** The host `SearchBlock` props minus the render site's own fields. */
+export type SidechatSearchCard = DistributiveOmit<SearchBlockProps, 'labels' | 'className'>
+
+/** The host `WebBlock` props minus the render site's own fields. */
+export type SidechatWebCard = DistributiveOmit<WebBlockProps, 'labels' | 'className'>
 
 /**
  * Structured render payload for a tool row that maps onto one of the host's
@@ -53,6 +70,10 @@ export type SidechatToolCard =
   }
   | { type: 'diff'; diffs: DiffHunk[] }
   | { type: 'read'; label: string; lines: ReadBlockLine[]; totalLines: number; lang?: string }
+  /** grep / glob: the host SearchBlock, in its `matches` or `paths` shape. */
+  | { type: 'search'; card: SidechatSearchCard }
+  /** web_search / web_fetch: the host WebBlock, in its `search` or `fetch` shape. */
+  | { type: 'web'; card: SidechatWebCard }
 
 /** One file a `present` call delivered: its path (absolute from the
  *  `deliverables/presented` event, session-relative from the call arguments)
@@ -347,6 +368,93 @@ function readCardFromMeta(meta: Record<string, unknown>): SidechatToolCard | und
   return { type: 'read', label: path, lines: narrowed, totalLines, ...(lang !== undefined ? { lang } : {}) }
 }
 
+/** The grouped matches of grep's meta (`files: [{ path, matches: [{ lineNumber, line }] }]`),
+ *  or undefined when any entry is malformed — the host's own `searchFiles`
+ *  narrowing (1-based integer line numbers, string paths/lines). */
+function searchFiles(value: unknown): SearchFileGroup[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const files: SearchFileGroup[] = []
+  for (const entry of value) {
+    if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) return undefined
+    const { path, matches } = entry as Record<string, unknown>
+    if (typeof path !== 'string' || !Array.isArray(matches)) return undefined
+    const narrowed: SearchFileGroup['matches'] = []
+    for (const match of matches) {
+      if (match === null || typeof match !== 'object' || Array.isArray(match)) return undefined
+      const { lineNumber, line } = match as Record<string, unknown>
+      if (typeof lineNumber !== 'number' || !Number.isInteger(lineNumber) || lineNumber < 1) return undefined
+      if (typeof line !== 'string') return undefined
+      narrowed.push({ lineNumber, line })
+    }
+    files.push({ path, matches: narrowed })
+  }
+  return files
+}
+
+/** The cited sources of web_search's meta (`[{ url, title?, snippet?, publishedAt? }]`),
+ *  or undefined when any entry is malformed (a URL is required; the three
+ *  optional fields must be strings when present). */
+function webSources(value: unknown): WebSourceView[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const sources: WebSourceView[] = []
+  for (const entry of value) {
+    if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) return undefined
+    const { url, title, snippet, publishedAt } = entry as Record<string, unknown>
+    if (typeof url !== 'string') return undefined
+    if (title !== undefined && typeof title !== 'string') return undefined
+    if (snippet !== undefined && typeof snippet !== 'string') return undefined
+    if (publishedAt !== undefined && typeof publishedAt !== 'string') return undefined
+    sources.push({
+      url,
+      ...(title === undefined ? {} : { title }),
+      ...(snippet === undefined ? {} : { snippet }),
+      ...(publishedAt === undefined ? {} : { publishedAt }),
+    })
+  }
+  return sources
+}
+
+/**
+ * grep / glob's structured result, narrowed from `tool/result` `meta` alone —
+ * never by parsing the result text, and never from the call's arguments (the
+ * plugin only draws what the tool itself published). The narrowing is the
+ * host's: an exact `shape`, a boolean `truncated`, a non-negative integer
+ * `total`, and the shape's own arrays. Anything less keeps the generic row.
+ */
+function searchCardFromMeta(name: string, meta: Record<string, unknown>): SidechatToolCard | undefined {
+  const { truncated, total, shape } = meta
+  if (typeof truncated !== 'boolean') return undefined
+  if (typeof total !== 'number' || !Number.isInteger(total) || total < 0) return undefined
+  if (name === 'grep') {
+    if (shape !== 'matches') return undefined
+    const files = searchFiles(meta.files)
+    return files === undefined ? undefined : { type: 'search', card: { kind: 'matches', files, truncated, total } }
+  }
+  if (name !== 'glob' || shape !== 'paths' || !Array.isArray(meta.paths)) return undefined
+  if (!meta.paths.every((path): path is string => typeof path === 'string')) return undefined
+  return { type: 'search', card: { kind: 'paths', paths: [...meta.paths], truncated, total } }
+}
+
+/**
+ * web_search / web_fetch's structured result, narrowed from `tool/result`
+ * `meta` alone (see {@link searchCardFromMeta} for the same rules).
+ */
+function webCardFromMeta(name: string, meta: Record<string, unknown>): SidechatToolCard | undefined {
+  const { truncated } = meta
+  if (typeof truncated !== 'boolean') return undefined
+  if (name === 'web_search') {
+    const sources = webSources(meta.sources)
+    if (sources === undefined) return undefined
+    if (meta.answer !== undefined && typeof meta.answer !== 'string') return undefined
+    const answer = typeof meta.answer === 'string' ? meta.answer : undefined
+    return { type: 'web', card: { kind: 'search', sources, truncated, ...(answer === undefined ? {} : { answer }) } }
+  }
+  if (name !== 'web_fetch' || typeof meta.url !== 'string') return undefined
+  const { statusCode } = meta
+  if (typeof statusCode !== 'number' || !Number.isInteger(statusCode)) return undefined
+  return { type: 'web', card: { kind: 'fetch', url: meta.url, statusCode, truncated } }
+}
+
 /** The bash result's trailing exit markers (`[exit code: N]` /
  *  `[killed by signal: X]` — the model-facing text the tool appends), stripped
  *  the same way the host's parseExitStatus recovers the exit pill. */
@@ -355,9 +463,10 @@ const EXIT_CODE_RE = /\n\[exit code: (\d+)\]$/
 
 /**
  * Result-time card refinement: `meta`-carrying structure wins (edit/write's
- * applied hunks, read's line window), bash's output gets its exit marker
- * stripped into the exit pill, and a failed result always falls back to the
- * generic row (the host's isError path renders generic output too).
+ * applied hunks, read's line window, grep/glob's search card and web_search /
+ * web_fetch's web card), bash's output gets its exit marker stripped into the
+ * exit pill, and a failed result always falls back to the generic row (the
+ * host's isError path renders generic output too).
  */
 function resultCard(
   name: string,
@@ -381,6 +490,8 @@ function resultCard(
   if (meta === undefined) return previous
   if (name === 'edit' || name === 'write') return diffCardFromMeta(meta) ?? previous
   if (name === 'read') return readCardFromMeta(meta)
+  if (name === 'grep' || name === 'glob') return searchCardFromMeta(name, meta) ?? previous
+  if (name === 'web_search' || name === 'web_fetch') return webCardFromMeta(name, meta) ?? previous
   return previous
 }
 
