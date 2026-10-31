@@ -10,11 +10,14 @@
  *
  * ============================ CONTRACT ============================
  * 1. The `sidechat.events` result carries an ADDITIVE boolean field
- *    `truncated`:
- *      - `true`  ⇔ the response's `events` array is a TAIL SLICE of the
- *                  thread's own log (the cap removed events from the head);
- *      - `false` ⇒ `events` is the complete own log for this request
- *                  (including the `afterSeq` delta path, which never caps).
+ *    `truncated`, describing the THREAD rather than this one response:
+ *      - `true`  ⇔ the thread's own log EXCEEDS `EVENTS_CAP`, i.e. the reader
+ *                  is looking at an incomplete history (the response's
+ *                  `events` are then a tail slice of that log);
+ *      - `false` ⇔ the own log fits, so `events` (+ any delta) is complete.
+ *    The flag must NOT drift with the request shape: a small `afterSeq` poll
+ *    against an over-cap log is the same incomplete thread and still reports
+ *    `true`, while a delta on a log that fits reports `false`.
  * 2. The field is additive: `events`, `live` and `pending` keep their shapes,
  *    so an older client that ignores `truncated` parses the response unchanged.
  * 3. The boundary is exact: exactly `EVENTS_CAP` own events is NOT truncated;
@@ -121,12 +124,19 @@ describe('sidechat.events truncation flag (D10)', () => {
     expect(small.truncated).toBe(false)
   })
 
-  it('never reports truncation on the afterSeq delta path', async () => {
-    // A huge log, but the poll asks only for what came after it: the delta has
-    // dropped nothing, so the client must not show a "history was cut" hint.
+  it('reports the THREAD\'s truncation on a delta poll of an over-cap log too', async () => {
+    // The delta itself is tiny, but the thread's history is not: the reader is
+    // still looking at an incomplete log, so the flag follows the thread, not
+    // the request shape.
     const delta = await eventsRoute(EVENTS_CAP + 50, { afterSeq: EVENTS_CAP + 49 })
     expect(delta.events.map(event => event.seq)).toEqual([EVENTS_CAP + 50])
-    expect(delta.truncated).toBe(false)
+    expect(delta.truncated, 'an over-cap log stays truncated on a small delta').toBe(true)
+  })
+
+  it('leaves a delta on a log that fits untouched', async () => {
+    const delta = await eventsRoute(10, { afterSeq: 9 })
+    expect(delta.events.map(event => event.seq)).toEqual([10])
+    expect(delta.truncated, 'a log that fits is never called truncated').toBe(false)
   })
 
   it('keeps the response additive: events, live and pending are unchanged', async () => {

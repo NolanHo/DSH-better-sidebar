@@ -879,10 +879,16 @@ export function buildSidechatApi(ctx: Context, live?: AssistantLiveBuffer): Side
       // slice of the thread's own log, and the client cannot otherwise tell
       // that from "this is where the thread begins". The flag is additive: an
       // older client ignores it and parses `events`/`live`/`pending` as before.
+      //
+      // `truncated` describes the THREAD, not this response: it is true when the
+      // thread's own log already exceeds the cap, i.e. the reader is looking at
+      // an incomplete history. Keying it off the request's own slice would let a
+      // small poll against an over-cap log report "complete" (and an over-cap
+      // poll report a cut head it did not have).
       const capped = fresh.length > EVENTS_CAP
       return {
         events: capped ? fresh.slice(fresh.length - EVENTS_CAP) : fresh,
-        truncated: capped,
+        truncated: own.length > EVENTS_CAP,
         // The live rows ride every poll: they are process-local, so there is
         // no durable seq to page them by. An idle thread has none.
         live: liveEventsOf(live?.chunksFor(childId) ?? [], tailSeq),
