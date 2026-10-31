@@ -441,6 +441,8 @@ export const ar: Record<string, string> = {
   sideChatToLatest: 'العودة إلى الأحدث',
   sideChatDequeue: 'إزالة من قائمة الانتظار',
   sideChatRunError: 'فشل التشغيل: {message}',
+  sideChatTerminalAborted: 'تم إيقاف هذه الجولة',
+  sideChatTerminalMaxTokens: 'تم بلوغ حدّ الإخراج — الإجابة مقطوعة',
   sideChatModel: 'الطراز',
   sideChatModelInherit: 'وراثة المحادثة الرئيسية (لا يتوفر كتالوج للطرازات)',
   sideChatReasoning: 'جهد الاستدلال',

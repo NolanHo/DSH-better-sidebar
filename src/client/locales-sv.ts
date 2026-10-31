@@ -423,6 +423,8 @@ export const sv: Record<string, string> = {
   sideChatToLatest: 'Tillbaka till senaste',
   sideChatDequeue: 'Ta bort från kön',
   sideChatRunError: 'Körning misslyckades: {message}',
+  sideChatTerminalAborted: 'Den här omgången stoppades',
+  sideChatTerminalMaxTokens: 'Utmatningsgränsen nåddes — svaret är avkortat',
   sideChatModel: 'Modell',
   sideChatModelInherit: 'Ärv huvudsamtalet (ingen modellkatalog tillgänglig)',
   sideChatReasoning: 'Resonemangsinsats',

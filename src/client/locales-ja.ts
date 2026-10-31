@@ -440,6 +440,8 @@ export const ja: Record<string, string> = {
   sideChatToLatest: '最新へ戻る',
   sideChatDequeue: 'キューから削除',
   sideChatRunError: '実行失敗：{message}',
+  sideChatTerminalAborted: 'このターンは停止されました',
+  sideChatTerminalMaxTokens: '出力上限に達したため回答が途切れています',
   sideChatModel: 'モデル',
   sideChatModelInherit: 'メイン会話を継承（モデルカタログを取得できません）',
   sideChatReasoning: '推論の強度',

@@ -426,6 +426,8 @@ export const de: Record<string, string> = {
   sideChatToLatest: 'Zurück zum Neuesten',
   sideChatDequeue: 'Aus der Warteschlange entfernen',
   sideChatRunError: 'Ausführung fehlgeschlagen: {message}',
+  sideChatTerminalAborted: 'Dieser Durchlauf wurde gestoppt',
+  sideChatTerminalMaxTokens: 'Ausgabelimit erreicht — die Antwort ist abgeschnitten',
   sideChatModel: 'Modell',
   sideChatModelInherit: 'Hauptunterhaltung übernehmen (kein Modellkatalog verfügbar)',
   sideChatReasoning: 'Denkaufwand',

@@ -440,6 +440,8 @@ export const vi: Record<string, string> = {
   sideChatToLatest: 'Quay lại mới nhất',
   sideChatDequeue: 'Xóa khỏi hàng đợi',
   sideChatRunError: 'Chạy thất bại: {message}',
+  sideChatTerminalAborted: 'Lượt này đã bị dừng',
+  sideChatTerminalMaxTokens: 'Đã chạm giới hạn đầu ra — câu trả lời bị cắt',
   sideChatModel: 'Mô hình',
   sideChatModelInherit: 'Kế thừa hội thoại chính (không có danh mục mô hình)',
   sideChatReasoning: 'Mức suy luận',

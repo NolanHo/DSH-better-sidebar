@@ -581,6 +581,15 @@ function renderRow(row: SidechatTranscriptRow, labels: RowLabels, surface: RowSu
           {t('sideChatRunError', { message: row.text })}
         </div>
       )
+    case 'terminal':
+      // The turn ended without a normal completion: say which way (the reader
+      // stopped it vs the output limit cut it), because the next thing the
+      // reader does differs — resend, or continue in a fresh turn.
+      return (
+        <div key={key} className={css.sidechatTerminal}>
+          {t(row.reason === 'max-tokens' ? 'sideChatTerminalMaxTokens' : 'sideChatTerminalAborted')}
+        </div>
+      )
     case 'turnSummary': {
       // Quiet turn-tail metrics: token usage + wall duration, main-pane
       // StatsLine formatting. Parts appear only when computable.

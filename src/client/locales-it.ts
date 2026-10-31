@@ -431,6 +431,8 @@ export const it: Record<string, string> = {
   sideChatToLatest: 'Torna al più recente',
   sideChatDequeue: 'Rimuovi dalla coda',
   sideChatRunError: 'Esecuzione non riuscita: {message}',
+  sideChatTerminalAborted: 'Questo turno è stato interrotto',
+  sideChatTerminalMaxTokens: 'Limite di output raggiunto — la risposta è troncata',
   sideChatModel: 'Modello',
   sideChatModelInherit: 'Eredita la conversazione principale (catalogo modelli non disponibile)',
   sideChatReasoning: 'Sforzo di ragionamento',

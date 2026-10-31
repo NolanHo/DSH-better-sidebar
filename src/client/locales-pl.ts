@@ -442,6 +442,8 @@ export const pl: Record<string, string> = {
   sideChatToLatest: 'Wróć do najnowszych',
   sideChatDequeue: 'Usuń z kolejki',
   sideChatRunError: 'Wykonanie nie powiodło się: {message}',
+  sideChatTerminalAborted: 'Ta tura została zatrzymana',
+  sideChatTerminalMaxTokens: 'Osiągnięto limit wyjścia — odpowiedź jest ucięta',
   sideChatModel: 'Model',
   sideChatModelInherit: 'Dziedzicz główną rozmowę (brak katalogu modeli)',
   sideChatReasoning: 'Poziom rozumowania',

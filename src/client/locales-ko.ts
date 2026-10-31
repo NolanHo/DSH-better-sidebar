@@ -432,6 +432,8 @@ export const ko: Record<string, string> = {
   sideChatToLatest: '최신으로 돌아가기',
   sideChatDequeue: '대기열에서 제거',
   sideChatRunError: '실행 실패: {message}',
+  sideChatTerminalAborted: '이 턴이 중지되었습니다',
+  sideChatTerminalMaxTokens: '출력 한도에 도달해 답변이 잘렸습니다',
   sideChatModel: '모델',
   sideChatModelInherit: '기본 대화 상속(모델 카탈로그를 사용할 수 없음)',
   sideChatReasoning: '추론 강도',

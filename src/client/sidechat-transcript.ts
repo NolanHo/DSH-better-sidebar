@@ -111,6 +111,12 @@ export type SidechatTranscriptRow =
    *  (aggregated from `assistant/message.usage`) and wall duration (envelope
    *  time delta from `turn/start`), whichever are computable. */
   | { kind: 'turnSummary'; seq: number; inputTokens?: number; outputTokens?: number; durationMs?: number }
+  /** A turn that ended WITHOUT a normal completion, so the transcript says why
+   *  it stops there instead of looking deliberately finished: the reader (or
+   *  the agent) stopped it (`aborted`), or the output limit cut it
+   *  (`max-tokens`). One row per turn — the attempt's terminal finish reason and
+   *  the `turn/end` that repeats it are the same event. */
+  | { kind: 'terminal'; seq: number; reason: 'aborted' | 'max-tokens' }
 
 /** Compact token count the way the main conversation prints usage
  *  (517 / 12.2K / 1.2M — the host's own formatter is not exported). */
@@ -418,6 +424,40 @@ function attemptFailure(stream: unknown): string | undefined {
 }
 
 /**
+ * The TERMINAL state of a turn, or undefined when the reason is a normal finish
+ * or a provider error (which gets its own row): `aborted` and `interrupted`
+ * both mean "stopped before it finished", while `max-tokens` means the model hit
+ * the output limit and the answer is cut off.
+ */
+function terminalReason(reason: unknown): 'aborted' | 'max-tokens' | undefined {
+  if (reason === null || typeof reason !== 'object' || Array.isArray(reason)) return undefined
+  const kind = (reason as { kind?: unknown }).kind
+  if (kind === 'aborted' || kind === 'interrupted') return 'aborted'
+  if (kind === 'max-tokens') return 'max-tokens'
+  return undefined
+}
+
+/**
+ * The terminal state an `assistant/attempt` carries in its durable stream: the
+ * terminal `finish` chunk's reason (the same record walk as {@link attemptFailure},
+ * read for the stop/limit kinds instead of errors). Undefined for every other
+ * ending.
+ */
+function attemptTerminal(stream: unknown): 'aborted' | 'max-tokens' | undefined {
+  if (!Array.isArray(stream)) return undefined
+  for (const record of stream) {
+    if (record === null || typeof record !== 'object') continue
+    const entry = record as { type?: unknown; chunk?: unknown }
+    if (entry.type !== 'chunk') continue
+    const chunk = entry.chunk as { type?: unknown; reason?: unknown } | undefined
+    if (chunk === null || typeof chunk !== 'object' || chunk.type !== 'finish') continue
+    const terminal = terminalReason(chunk.reason)
+    if (terminal !== undefined) return terminal
+  }
+  return undefined
+}
+
+/**
  * Map a thread child's history rows onto compact transcript rows: the
  * inherited fork seed is cut at the last `session/end-seed`, context
  * injections map onto a collapsible injection row, `assistant/live-chunk`
@@ -448,6 +488,9 @@ export function transcriptRows(entries: readonly SidebarHistoryEntry[], prev?: r
   /** Turns that already rendered a failure row (an attempt error and the
    *  `turn/end` that follows it are the SAME failure — one row per turn). */
   const errorTurns = new Set<number>()
+  /** Turns that already rendered a terminal row (same dedupe rule: the attempt's
+   *  stop/limit finish reason and the `turn/end` that repeats it are one turn). */
+  const terminalTurns = new Set<number>()
   /** turn → usage aggregate: output accumulates across steps, input takes the
    *  last request's prompt size (earlier steps' input is mostly the same
    *  context re-sent, so summing would double-count). */
@@ -470,6 +513,13 @@ export function transcriptRows(entries: readonly SidebarHistoryEntry[], prev?: r
           errorTurns.add(turn)
           rows.push({ kind: 'error', seq: event.seq, text: failure })
         }
+        // A stop or an output-limit cut is not an error, but it must not look
+        // like a deliberate finish either: one terminal row per turn.
+        const terminal = terminalReason(data.reason)
+        if (terminal !== undefined && !terminalTurns.has(turn)) {
+          terminalTurns.add(turn)
+          rows.push({ kind: 'terminal', seq: event.seq, reason: terminal })
+        }
         const start = turnStarts.get(turn)
         turnStarts.delete(turn)
         const usage = turnUsage.get(turn)
@@ -489,11 +539,23 @@ export function transcriptRows(entries: readonly SidebarHistoryEntry[], prev?: r
         // error row is the finish chunk's reason (the turn/end that follows
         // repeats the same failure and must not render it twice).
         const turn = data.turn
-        if (typeof turn !== 'number' || !Number.isInteger(turn) || errorTurns.has(turn)) break
-        const failure = attemptFailure(data.stream)
-        if (failure === undefined) break
-        errorTurns.add(turn)
-        rows.push({ kind: 'error', seq: event.seq, text: failure })
+        if (typeof turn !== 'number' || !Number.isInteger(turn)) break
+        if (!errorTurns.has(turn)) {
+          const failure = attemptFailure(data.stream)
+          if (failure !== undefined) {
+            errorTurns.add(turn)
+            rows.push({ kind: 'error', seq: event.seq, text: failure })
+          }
+        }
+        // A stopped / output-limit attempt settles the same way, with the same
+        // "one row per turn" rule (the turn/end that follows repeats it).
+        if (!terminalTurns.has(turn)) {
+          const terminal = attemptTerminal(data.stream)
+          if (terminal !== undefined) {
+            terminalTurns.add(turn)
+            rows.push({ kind: 'terminal', seq: event.seq, reason: terminal })
+          }
+        }
         break
       }
       case 'user/message': {
@@ -757,6 +819,10 @@ function rowsEqual(a: SidechatTranscriptRow, b: SidechatTranscriptRow): boolean 
       const other = b as typeof a
       return a.inputTokens === other.inputTokens && a.outputTokens === other.outputTokens
         && a.durationMs === other.durationMs
+    }
+    case 'terminal': {
+      const other = b as typeof a
+      return a.reason === other.reason
     }
   }
 }

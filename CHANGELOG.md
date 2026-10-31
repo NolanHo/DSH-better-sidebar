@@ -4,6 +4,9 @@
 
 ### 未发布
 
+- 🛑 **被停下的轮次不再「悄悄结束」，撞到输出上限也有交代**：`turn/end` 此前只认 `reason.kind === 'error'`，其它结束原因全部丢弃——于是按下停止后转录只是不再增长（分不清「答完了」还是「被杀掉了」），而 `max-tokens` 截断看起来和正常结束一模一样。现在 `aborted` / `interrupted` 会留下一条「本轮已被停止」，`max-tokens` 留下「输出已达上限，回答被截断」（两句不同，因为读者接下来要做的事不同），同一轮内 attempt 的终止原因与随后的 `turn/end` 去重为一条；error 路径与正常完成的行为不变。两句话进全部 21 份词典。
+  - 🧪 测试：`tests/sidechat-terminal-rows.spec.tsx`（两种停止原因恰好一条 terminal 行、max-tokens 单独一句、attempt+turn/end 去重、error/completed 不变、视图里确实显示对应文案）。
+
 - 🧠 **侧边对话的「思考」行按 Markdown 渲染，并标出思考字数**：推理正文此前是一段 `white-space: pre-wrap` 的纯文本，模型写的 `**重点**`、`- 条目`、`` `命令` `` 和源码链接都原样糊在读者眼前——这是侧边对话里最后一处与主对话不一致的地方（主对话的 reasoning 是 markdown）。现在思考正文走宿主的 `MarkdownText`，与助手正文同一个渲染组件、同一个 `MarkdownDelegateProvider` 作用域：强调变 `<strong>`、列表变 `<li>`、行内码变 `<code>`，本地 `[文件](<path:line>)` 链接同样被宿主接管、点击经 `betterSidebar.openTab` 打开到对应行。折叠条上同时显示 `sideChatReasoningSummary`（{chars} 字符，取原始正文长度；思考行没有时长数据，因此不编造耗时）。
   - 🧪 测试：`tests/sidechat-reasoning-markdown.spec.tsx`（元素化渲染 / 链接被 claim 且点击打开到行 / 折叠摘要取词典文案）。
 

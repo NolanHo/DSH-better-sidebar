@@ -440,6 +440,8 @@ export const tr: Record<string, string> = {
   sideChatToLatest: 'En sona dön',
   sideChatDequeue: 'Kuyruktan kaldır',
   sideChatRunError: 'Çalıştırma başarısız: {message}',
+  sideChatTerminalAborted: 'Bu tur durduruldu',
+  sideChatTerminalMaxTokens: 'Çıktı sınırına ulaşıldı — yanıt kesildi',
   sideChatModel: 'Model',
   sideChatModelInherit: 'Ana sohbeti devral (model kataloğu yok)',
   sideChatReasoning: 'Akıl yürütme düzeyi',

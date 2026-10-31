@@ -438,6 +438,8 @@ export const id: Record<string, string> = {
   sideChatToLatest: 'Kembali ke terbaru',
   sideChatDequeue: 'Hapus dari antrean',
   sideChatRunError: 'Eksekusi gagal: {message}',
+  sideChatTerminalAborted: 'Giliran ini dihentikan',
+  sideChatTerminalMaxTokens: 'Batas keluaran tercapai — jawaban terpotong',
   sideChatModel: 'Model',
   sideChatModelInherit: 'Warisi percakapan utama (katalog model tidak tersedia)',
   sideChatReasoning: 'Tingkat penalaran',

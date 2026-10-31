@@ -440,6 +440,8 @@ export const hi: Record<string, string> = {
   sideChatToLatest: 'नवीनतम पर लौटें',
   sideChatDequeue: 'कतार से हटाएँ',
   sideChatRunError: 'निष्पादन विफल: {message}',
+  sideChatTerminalAborted: 'यह टर्न रोक दिया गया',
+  sideChatTerminalMaxTokens: 'आउटपुट सीमा पूरी — उत्तर कटा हुआ है',
   sideChatModel: 'मॉडल',
   sideChatModelInherit: 'मुख्य वार्ता विरासत में लें (मॉडल सूची उपलब्ध नहीं)',
   sideChatReasoning: 'तर्क प्रयास',

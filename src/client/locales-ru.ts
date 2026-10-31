@@ -438,6 +438,8 @@ export const ru: Record<string, string> = {
   sideChatToLatest: 'К последнему',
   sideChatDequeue: 'Убрать из очереди',
   sideChatRunError: 'Сбой выполнения: {message}',
+  sideChatTerminalAborted: 'Этот ход остановлен',
+  sideChatTerminalMaxTokens: 'Достигнут лимит вывода — ответ обрезан',
   sideChatModel: 'Модель',
   sideChatModelInherit: 'Наследовать основной диалог (каталог моделей недоступен)',
   sideChatReasoning: 'Уровень рассуждений',
