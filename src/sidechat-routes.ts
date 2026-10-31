@@ -63,7 +63,9 @@ import {
   type SidechatModelSelection,
   type SidechatPendingInput,
   type SidechatThreadInfo,
+  sidechatForkPoint,
   threadOwnLogEvents,
+  type SidechatForkPoint,
 } from './sidechat-core.ts'
 import type { AssistantLiveBuffer } from './assistant-live.ts'
 import { requireString, SidebarError } from './wire.ts'
@@ -131,6 +133,9 @@ export interface SidechatRoutes {
     events: SidechatLogEvent[]
     live: SidechatLiveEvent[]
     pending: SidechatPendingInput[]
+    /** The FIRST pull of a seeded thread also says where it forked off the
+     *  parent conversation (the tail the route cut away). Additive. */
+    fork?: SidechatForkPoint
   }>
   /** Drop one unclaimed inbox message, or the whole queue when `messageId` is
    *  omitted. A cold thread has nothing live to drop and answers `removed: 0`. */
@@ -872,6 +877,10 @@ export function buildSidechatApi(ctx: Context, live?: AssistantLiveBuffer): Side
       }
       const events = await threadLogEvents(ctx, childId)
       const own = threadOwnLogEvents(events)
+      // The fork point is read from the FULL log (the parent prefix is what the
+      // cut removed); a DELTA pull never carries it — the client caches it from
+      // the first pull only.
+      const fork = rawAfter === undefined ? sidechatForkPoint(events) : undefined
       const fresh = rawAfter === undefined ? own : own.filter(event => event.seq > rawAfter)
       const tailSeq = own.at(-1)?.seq ?? -1
       const agent = liveThreadAgent(ctx, childId)
@@ -889,6 +898,7 @@ export function buildSidechatApi(ctx: Context, live?: AssistantLiveBuffer): Side
       return {
         events: capped ? fresh.slice(fresh.length - EVENTS_CAP) : fresh,
         truncated: own.length > EVENTS_CAP,
+        ...(fork === undefined ? {} : { fork }),
         // The live rows ride every poll: they are process-local, so there is
         // no durable seq to page them by. An idle thread has none.
         live: liveEventsOf(live?.chunksFor(childId) ?? [], tailSeq),
