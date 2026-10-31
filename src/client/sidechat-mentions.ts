@@ -12,20 +12,33 @@
  * what this module does — no request per token, no guess at what "looks like" a
  * path.
  *
- * Only two row shapes carry evidence of production:
- * - a `tool/call`'s arguments (`file_path` for the fs tools, `path` for the
- *   search/read family),
+ * Only two row shapes carry evidence of production, and only the MUTATION tools
+ * count (see {@link MUTATION_PATH_KEYS}):
+ * - a successful `write` / `edit` / `str_replace_editor` call's target path,
  * - a `deliverables` row (`files[].path`, the authoritative delivery record).
  */
 import type { SidechatTranscriptRow } from './sidechat-transcript.ts'
 import { parseArgsObject } from './sidechat-transcript.ts'
 import { baseName } from './paths.ts'
 
-/** The call-argument keys that name a file the call touched, in priority order. */
-const MENTION_ARG_KEYS = ['file_path', 'path'] as const
+/**
+ * The call-argument key naming the target of each MUTATION tool — the plugin's
+ * mirror of the host's produced-path set (`ui-deliverables/turn-deliverables.ts`
+ * `mutationPath`: write / edit / str_replace_editor). Reads and searches are
+ * deliberately absent: a `read` target or a `grep`/`glob` root is not a file
+ * this thread PRODUCED, and the directories those calls name would otherwise
+ * become openable "mentions" that land the editor on a folder.
+ */
+const MUTATION_PATH_KEYS: Readonly<Record<string, string>> = {
+  write: 'file_path',
+  edit: 'file_path',
+  str_replace_editor: 'path',
+}
 
 /**
- * Every path this thread produced, in first-seen order and deduplicated.
+ * Every path this thread produced, in first-seen order and deduplicated: the
+ * target of a successful (`failed !== true`) mutation call, plus every
+ * delivered file. Nothing else — see {@link MUTATION_PATH_KEYS}.
  * @param rows - the thread's mapped transcript rows.
  * @returns the produced paths exactly as the producing row spelled them
  * (relative call arguments stay relative; delivery events are absolute).
@@ -37,9 +50,11 @@ export function producedFilePaths(rows: readonly SidechatTranscriptRow[]): strin
   }
   for (const row of rows) {
     if (row.kind === 'tool') {
+      const pathKey = MUTATION_PATH_KEYS[row.name]
+      if (pathKey === undefined || row.failed === true) continue
       const args = parseArgsObject(row.args)
       if (args === undefined) continue
-      for (const key of MENTION_ARG_KEYS) add(args[key])
+      add(args[pathKey])
     } else if (row.kind === 'deliverables') {
       for (const file of row.files) add(file.path)
     }
