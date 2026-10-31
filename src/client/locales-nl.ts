@@ -469,6 +469,8 @@ export const nl: Record<string, string> = {
   sideChatBlockFailed: 'Mislukt',
   sideChatBlockDone: 'Voltooid',
   sideChatBlockNoOutput: '(geen uitvoer)',
+  sideChatForkBanner: 'Afgetakt van de hoofdsessie',
+  sideChatForkAnswer: 'Het antwoord vóór de aftakking',
   sideChatWorkDetails: 'Werkdetails',
   sideChatCompactionSummary: 'Eerdere geschiedenis ingekort',
   sideChatCompactionItems: '{count} items samengevouwen',

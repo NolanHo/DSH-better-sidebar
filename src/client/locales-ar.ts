@@ -472,6 +472,8 @@ export const ar: Record<string, string> = {
   sideChatBlockFailed: 'فشل',
   sideChatBlockDone: 'اكتمل',
   sideChatBlockNoOutput: '(لا يوجد إخراج)',
+  sideChatForkBanner: 'متفرّع من الجلسة الرئيسية',
+  sideChatForkAnswer: 'إجابة الجلسة الرئيسية قبل التفرّع',
   sideChatWorkDetails: 'تفاصيل العمل',
   sideChatCompactionSummary: 'تم ضغط السجلّ الأقدم',
   sideChatCompactionItems: 'طُوي {count} عنصرًا',

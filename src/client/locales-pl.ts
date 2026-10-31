@@ -473,6 +473,8 @@ export const pl: Record<string, string> = {
   sideChatBlockFailed: 'Niepowodzenie',
   sideChatBlockDone: 'Zakończono',
   sideChatBlockNoOutput: '(brak wyniku)',
+  sideChatForkBanner: 'Odgałęziono z sesji głównej',
+  sideChatForkAnswer: 'Odpowiedź przed odgałęzieniem',
   sideChatWorkDetails: 'Szczegóły pracy',
   sideChatCompactionSummary: 'Wcześniejsza historia została skrócona',
   sideChatCompactionItems: 'Złożono {count} elementów',

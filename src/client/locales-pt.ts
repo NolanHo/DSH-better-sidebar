@@ -454,6 +454,8 @@ export const pt: Record<string, string> = {
   sideChatBlockFailed: 'Falhou',
   sideChatBlockDone: 'Concluído',
   sideChatBlockNoOutput: '(sem saída)',
+  sideChatForkBanner: 'Derivado da sessão principal',
+  sideChatForkAnswer: 'A resposta antes da derivação',
   sideChatWorkDetails: 'Detalhes do trabalho',
   sideChatCompactionSummary: 'Histórico anterior compactado',
   sideChatCompactionItems: '{count} itens dobrados',

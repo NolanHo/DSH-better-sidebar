@@ -454,6 +454,8 @@ export const sv: Record<string, string> = {
   sideChatBlockFailed: 'Misslyckades',
   sideChatBlockDone: 'Klar',
   sideChatBlockNoOutput: '(ingen utdata)',
+  sideChatForkBanner: 'Avgrenad från huvudsessionen',
+  sideChatForkAnswer: 'Svaret före avgreningen',
   sideChatWorkDetails: 'Arbetsdetaljer',
   sideChatCompactionSummary: 'Tidigare historik komprimerades',
   sideChatCompactionItems: '{count} poster ihopfällda',

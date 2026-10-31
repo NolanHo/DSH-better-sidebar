@@ -486,6 +486,8 @@ export const zhTW: Record<string, string> = {
   sideChatBlockFailed: '失敗',
   sideChatBlockDone: '完成',
   sideChatBlockNoOutput: '（無輸出）',
+  sideChatForkBanner: '從主會話分支',
+  sideChatForkAnswer: '分支前主會話的回答',
   sideChatWorkDetails: '工作細節',
   sideChatCompactionSummary: '更早的歷史已壓縮',
   sideChatCompactionItems: '{count} 項已折疊',

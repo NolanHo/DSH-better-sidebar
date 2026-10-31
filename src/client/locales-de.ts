@@ -457,6 +457,8 @@ export const de: Record<string, string> = {
   sideChatBlockFailed: 'Fehlgeschlagen',
   sideChatBlockDone: 'Fertig',
   sideChatBlockNoOutput: '(keine Ausgabe)',
+  sideChatForkBanner: 'Von der Hauptsitzung abgezweigt',
+  sideChatForkAnswer: 'Die Antwort vor der Abzweigung',
   sideChatWorkDetails: 'Arbeitsdetails',
   sideChatCompactionSummary: 'Frühere Historie komprimiert',
   sideChatCompactionItems: '{count} Einträge gefaltet',

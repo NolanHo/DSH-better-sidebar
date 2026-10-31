@@ -759,6 +759,67 @@
 }
 
 /* ── motion vocabulary (crossfade only, ≤200ms; loops reduced-motion off) */
+/* The fork point: a quiet disclosure above the first row, in the same chrome
+ * voice as the truncation notice. The line is one scrolling sentence — label,
+ * the parent's question, then the parent session — so it truncates instead of
+ * pushing the transcript down. */
+.sidechatForkPoint {
+  flex: none;
+  min-width: 0;
+}
+
+.sidechatForkLine {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  list-style: none;
+  cursor: pointer;
+  font-size: var(--dsh-content-font-size-secondary, 13px);
+  line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
+  font-family: var(--dsw-font-family);
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.sidechatForkLine::-webkit-details-marker {
+  display: none;
+}
+
+.sidechatForkPoint[open] > .sidechatForkLine .sidechatRowChevron {
+  transform: rotate(90deg);
+}
+
+.sidechatForkLabel {
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.sidechatForkQuestion {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.sidechatForkParent {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.sidechatForkBody {
+  margin-top: 6px;
+  padding-left: 18px;
+  min-width: 0;
+}
+
+.sidechatForkAnswerLabel {
+  font-size: var(--dsh-content-font-size-secondary, 13px);
+  line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
+  font-family: var(--dsw-font-family);
+  color: var(--dsw-alias-label-tertiary);
+}
+
 /* One Turn's work-detail disclosure (R1): the line is chrome, the body holds
  * the turn's process rows. `display: contents` on their mount boxes makes the
  * rows flex children of the body, so the transcript's own rhythm survives. */

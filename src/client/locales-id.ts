@@ -469,6 +469,8 @@ export const id: Record<string, string> = {
   sideChatBlockFailed: 'Gagal',
   sideChatBlockDone: 'Selesai',
   sideChatBlockNoOutput: '(tanpa output)',
+  sideChatForkBanner: 'Bercabang dari sesi utama',
+  sideChatForkAnswer: 'Jawaban sebelum bercabang',
   sideChatWorkDetails: 'Detail pekerjaan',
   sideChatCompactionSummary: 'Riwayat sebelumnya dipadatkan',
   sideChatCompactionItems: '{count} item dilipat',

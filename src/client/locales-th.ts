@@ -471,6 +471,8 @@ export const th: Record<string, string> = {
   sideChatBlockFailed: 'ล้มเหลว',
   sideChatBlockDone: 'เสร็จสิ้น',
   sideChatBlockNoOutput: '(ไม่มีเอาต์พุต)',
+  sideChatForkBanner: 'แยกจากเซสชันหลัก',
+  sideChatForkAnswer: 'คำตอบก่อนแยกสาขา',
   sideChatWorkDetails: 'รายละเอียดงาน',
   sideChatCompactionSummary: 'ประวัติก่อนหน้าถูกย่อแล้ว',
   sideChatCompactionItems: 'พับ {count} รายการ',

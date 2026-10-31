@@ -85,6 +85,7 @@ import { openSidebarFile } from './sidebar-file.ts'
 import { useMarkdownSurface } from './use-markdown-surface.ts'
 import { IconHistoryOutline16, IconSaveOutline16 } from './icons.tsx'
 import type { Context, SidebarHistoryEntry, SidebarSessionEvent } from '../context-types.ts'
+import type { SidechatForkPoint } from '../sidechat-core.ts'
 import {
   SIDE_LABEL_PREFIX,
   SIDE_NEW_THREAD_TITLE,
@@ -289,6 +290,9 @@ interface ThreadCache {
   /** The FIRST pull of this thread was answered from a capped (tail-sliced)
    *  log: the transcript opens mid-history and has to say so. */
   truncated: boolean
+  /** Where the FIRST pull said this thread forked off its parent conversation
+   *  (the route's additive `fork`); absent for an unseeded thread. */
+  fork?: SidechatForkPoint
 }
 
 /** The catalog row of one route: the model picker reads its reasoning efforts
@@ -1120,6 +1124,16 @@ export function SideChatView(props: {
 
   const summary = threadId === undefined ? undefined : list.byId[threadId]
   const running = summary?.running === true
+  /** The fork point the first pull reported — only when the parent prefix had
+   *  something to summarise (a `cutSeq`-only field draws no banner). */
+  const forkReport = cacheRef.current.fork
+  const forkPoint = forkReport !== undefined
+    && (forkReport.user !== undefined || forkReport.assistant !== undefined)
+    ? forkReport
+    : undefined
+  /** The parent session's own title, when the session list knows the thread's
+   *  parent (the host field is `displayTitle`). */
+  const parentTitle = summary?.parentId === undefined ? undefined : list.byId[summary.parentId]?.displayTitle
   /**
    * Whether the host's own session list can ever show the bound session again
    * after archiving it. It cannot for a subagent-origin row: the host's
@@ -1234,7 +1248,7 @@ export function SideChatView(props: {
     controllerRef.current = controller
     try {
       const afterSeq = cache.entries.at(-1)?.event.seq
-      const { events, live, pending, truncated } = await api.sidechatEvents(childId, afterSeq, controller.signal)
+      const { events, live, pending, truncated, fork } = await api.sidechatEvents(childId, afterSeq, controller.signal)
       if (controller.signal.aborted || cacheRef.current !== cache) return
       // The live set is the CURRENT attempt, so it replaces whatever the
       // previous pull held; a settled step drops out of the host buffer and
@@ -1245,7 +1259,12 @@ export function SideChatView(props: {
       // Only the FIRST pull of a binding answers from the whole log, so only it
       // can report a capped head; a poll must not clear a flag the first pull
       // established.
-      if (afterSeq === undefined) cache.truncated = truncated === true
+      if (afterSeq === undefined) {
+        cache.truncated = truncated === true
+        // The fork point is answered by the first pull only; a poll must not
+        // clear what it established.
+        cache.fork = fork
+      }
       if (events.length > 0) {
         // Wire events arrive as parsed JSON; the mirror narrows data to the
         // record the mapping reads.
@@ -2003,6 +2022,34 @@ export function SideChatView(props: {
           <div className={css.sidechatTruncatedNotice} data-sidechat-truncated-notice="">
             {t('sideChatTruncatedNotice')}
           </div>
+        )}
+        {/* Where this thread forked off the parent conversation: the cut the
+            route performs is otherwise invisible, so the reader could not tell
+            which main-pane question they were asking. Chrome, not
+            conversation — no row hook, no row count. */}
+        {forkPoint !== undefined && (
+          <details className={css.sidechatForkPoint} data-sidechat-fork-point="">
+            <summary className={css.sidechatForkLine}>
+              <span className={css.sidechatRowChevron}>
+                <IconChevronRightOutlineRegular size={12} />
+              </span>
+              <span className={css.sidechatForkLabel}>{t('sideChatForkBanner')}</span>
+              {forkPoint.user === undefined
+                ? null
+                : <span className={css.sidechatForkQuestion}>{forkPoint.user.text}</span>}
+              {parentTitle === undefined
+                ? null
+                : <span className={css.sidechatForkParent}>{parentTitle}</span>}
+            </summary>
+            {forkPoint.assistant === undefined
+              ? null
+              : (
+                <div className={css.sidechatForkBody}>
+                  <div className={css.sidechatForkAnswerLabel}>{t('sideChatForkAnswer')}</div>
+                  <div className={css.sidechatRowProse}>{forkPoint.assistant.text}</div>
+                </div>
+              )}
+          </details>
         )}
         {/* The hidden head of the thread: the spacer holds the scroll space the
             unmounted rows used to occupy (their DECLARED height — jsdom has no

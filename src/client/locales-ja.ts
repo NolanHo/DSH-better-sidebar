@@ -471,6 +471,8 @@ export const ja: Record<string, string> = {
   sideChatBlockFailed: '失敗',
   sideChatBlockDone: '完了',
   sideChatBlockNoOutput: '（出力なし）',
+  sideChatForkBanner: 'メインセッションから分岐',
+  sideChatForkAnswer: '分岐前のメインセッションの回答',
   sideChatWorkDetails: '作業の詳細',
   sideChatCompactionSummary: '以前の履歴を圧縮しました',
   sideChatCompactionItems: '{count} 件を折りたたみ',

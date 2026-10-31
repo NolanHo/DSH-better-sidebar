@@ -11,6 +11,7 @@ import { encodeHtmlUrl } from '../html-route.ts'
 import { hostRouteUrl } from './host-route-url.ts'
 import { resolveSidebarPath } from './paths.ts'
 import type {
+  SidechatForkPoint,
   SidechatLiveEvent,
   SidechatLogEvent,
   SidechatModelCatalog,
@@ -638,6 +639,9 @@ export const api = {
       /** The route cut the head of the log to its event cap: `events` is a TAIL
        *  slice, so the transcript must say history is missing above it. */
       truncated?: boolean
+      /** The FIRST pull of a seeded thread: where it forked off the parent
+       *  conversation, and the parent's last exchange there (additive). */
+      fork?: SidechatForkPoint
     }>('sidechat.events', {
       childId,
       ...(afterSeq !== undefined ? { afterSeq } : {}),
