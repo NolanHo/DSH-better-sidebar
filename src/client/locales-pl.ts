@@ -444,6 +444,8 @@ export const pl: Record<string, string> = {
   sideChatRunError: 'Wykonanie nie powiodło się: {message}',
   sideChatTerminalAborted: 'Ta tura została zatrzymana',
   sideChatTerminalMaxTokens: 'Osiągnięto limit wyjścia — odpowiedź jest ucięta',
+  sideChatToolArguments: 'Argumenty',
+  sideChatToolResult: 'Wynik',
   sideChatTruncatedNotice: 'Wcześniejsza historia nie jest wczytana w tym widoku',
   sideChatModel: 'Model',
   sideChatModelInherit: 'Dziedzicz główną rozmowę (brak katalogu modeli)',

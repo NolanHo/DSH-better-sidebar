@@ -425,6 +425,8 @@ export const sv: Record<string, string> = {
   sideChatRunError: 'Körning misslyckades: {message}',
   sideChatTerminalAborted: 'Den här omgången stoppades',
   sideChatTerminalMaxTokens: 'Utmatningsgränsen nåddes — svaret är avkortat',
+  sideChatToolArguments: 'Argument',
+  sideChatToolResult: 'Resultat',
   sideChatTruncatedNotice: 'Tidigare historik är inte inläst i den här vyn',
   sideChatModel: 'Modell',
   sideChatModelInherit: 'Ärv huvudsamtalet (ingen modellkatalog tillgänglig)',

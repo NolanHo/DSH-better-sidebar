@@ -440,6 +440,8 @@ export const nl: Record<string, string> = {
   sideChatRunError: 'Uitvoering mislukt: {message}',
   sideChatTerminalAborted: 'Deze beurt is gestopt',
   sideChatTerminalMaxTokens: 'Uitvoerlimiet bereikt — het antwoord is afgekapt',
+  sideChatToolArguments: 'Argumenten',
+  sideChatToolResult: 'Resultaat',
   sideChatTruncatedNotice: 'Eerdere geschiedenis is niet in deze weergave geladen',
   sideChatModel: 'Model',
   sideChatModelInherit: 'Hoofdgesprek overnemen (geen modelcatalogus beschikbaar)',

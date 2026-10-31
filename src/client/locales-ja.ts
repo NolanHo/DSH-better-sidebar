@@ -442,6 +442,8 @@ export const ja: Record<string, string> = {
   sideChatRunError: '実行失敗：{message}',
   sideChatTerminalAborted: 'このターンは停止されました',
   sideChatTerminalMaxTokens: '出力上限に達したため回答が途切れています',
+  sideChatToolArguments: '引数',
+  sideChatToolResult: '結果',
   sideChatTruncatedNotice: '以前の履歴はこの表示に読み込まれていません',
   sideChatModel: 'モデル',
   sideChatModelInherit: 'メイン会話を継承（モデルカタログを取得できません）',

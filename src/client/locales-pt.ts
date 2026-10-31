@@ -425,6 +425,8 @@ export const pt: Record<string, string> = {
   sideChatRunError: 'Falha na execução: {message}',
   sideChatTerminalAborted: 'Esta rodada foi interrompida',
   sideChatTerminalMaxTokens: 'Limite de saída atingido — a resposta está cortada',
+  sideChatToolArguments: 'Argumentos',
+  sideChatToolResult: 'Resultado',
   sideChatTruncatedNotice: 'O histórico anterior não está carregado nesta visualização',
   sideChatModel: 'Modelo',
   sideChatModelInherit: 'Herdar a conversa principal (catálogo de modelos indisponível)',

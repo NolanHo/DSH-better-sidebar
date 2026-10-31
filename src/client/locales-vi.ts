@@ -442,6 +442,8 @@ export const vi: Record<string, string> = {
   sideChatRunError: 'Chạy thất bại: {message}',
   sideChatTerminalAborted: 'Lượt này đã bị dừng',
   sideChatTerminalMaxTokens: 'Đã chạm giới hạn đầu ra — câu trả lời bị cắt',
+  sideChatToolArguments: 'Đối số',
+  sideChatToolResult: 'Kết quả',
   sideChatTruncatedNotice: 'Lịch sử trước đó không được tải trong chế độ xem này',
   sideChatModel: 'Mô hình',
   sideChatModelInherit: 'Kế thừa hội thoại chính (không có danh mục mô hình)',

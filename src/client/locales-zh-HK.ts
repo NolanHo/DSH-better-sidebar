@@ -457,6 +457,8 @@ export const zhHK: Record<string, string> = {
   sideChatRunError: '執行失敗：{message}',
   sideChatTerminalAborted: '本輪已被停止',
   sideChatTerminalMaxTokens: '輸出已達上限，回答被截斷',
+  sideChatToolArguments: '參數',
+  sideChatToolResult: '結果',
   sideChatTruncatedNotice: '更早的歷史未載入本檢視',
   sideChatModel: '模型',
   sideChatModelInherit: '繼承主對話（宿主未提供模型目錄）',

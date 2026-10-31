@@ -481,6 +481,17 @@
   overflow-y: auto;
 }
 
+/* A labelled section inside a generic tool row's disclosed body ("Arguments",
+   "Result"): quiet, so the raw content stays the thing being read. */
+.sidechatToolSectionLabel {
+  margin: 2px 0;
+  font-size: var(--dsh-content-font-size-secondary, 13px);
+  line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
+  font-family: var(--dsw-font-family);
+  color: var(--dsw-alias-label-tertiary);
+  user-select: none;
+}
+
 .sidechatRowCode {
   margin: 0;
   padding: 4px 0;

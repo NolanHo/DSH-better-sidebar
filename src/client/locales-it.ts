@@ -433,6 +433,8 @@ export const it: Record<string, string> = {
   sideChatRunError: 'Esecuzione non riuscita: {message}',
   sideChatTerminalAborted: 'Questo turno è stato interrotto',
   sideChatTerminalMaxTokens: 'Limite di output raggiunto — la risposta è troncata',
+  sideChatToolArguments: 'Argomenti',
+  sideChatToolResult: 'Risultato',
   sideChatTruncatedNotice: 'La cronologia precedente non è caricata in questa vista',
   sideChatModel: 'Modello',
   sideChatModelInherit: 'Eredita la conversazione principale (catalogo modelli non disponibile)',

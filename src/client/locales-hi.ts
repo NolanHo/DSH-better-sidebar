@@ -442,6 +442,8 @@ export const hi: Record<string, string> = {
   sideChatRunError: 'निष्पादन विफल: {message}',
   sideChatTerminalAborted: 'यह टर्न रोक दिया गया',
   sideChatTerminalMaxTokens: 'आउटपुट सीमा पूरी — उत्तर कटा हुआ है',
+  sideChatToolArguments: 'आर्ग्युमेंट',
+  sideChatToolResult: 'परिणाम',
   sideChatTruncatedNotice: 'पुराना इतिहास इस दृश्य में लोड नहीं है',
   sideChatModel: 'मॉडल',
   sideChatModelInherit: 'मुख्य वार्ता विरासत में लें (मॉडल सूची उपलब्ध नहीं)',

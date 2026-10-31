@@ -651,12 +651,28 @@ function renderRow(row: SidechatTranscriptRow, labels: RowLabels, surface: RowSu
       )
     }
     case 'tool': {
+      // A tool WITHOUT a structured card (grep/glob/web_search and every host
+      // tool this view does not know): the collapsed line carries the one-line
+      // argument summary, and the disclosed body splits into two LABELLED
+      // sections — raw arguments, then raw output — so a reader who expands
+      // always knows which block is which (two unlabelled <pre>s of JSON next
+      // to raw output was a wall of escaped quotes).
       const body = row.card !== undefined
         ? toolCardBody(row.card, row.executing === true, labels)
         : (
           <>
-            {row.args !== undefined && <pre className={css.sidechatRowCode}>{row.args}</pre>}
-            {row.resultText !== undefined && <pre className={css.sidechatRowCode}>{row.resultText}</pre>}
+            {row.args !== undefined && (
+              <>
+                <div className={css.sidechatToolSectionLabel}>{t('sideChatToolArguments')}</div>
+                <pre className={css.sidechatRowCode}>{row.args}</pre>
+              </>
+            )}
+            {row.resultText !== undefined && (
+              <>
+                <div className={css.sidechatToolSectionLabel}>{t('sideChatToolResult')}</div>
+                <pre className={css.sidechatRowCode}>{row.resultText}</pre>
+              </>
+            )}
           </>
         )
       return (
@@ -765,7 +781,26 @@ export function SideChatView(props: {
   const threadId = sidechatThreadIdOf(tab)
   const autoCreate = (tab.meta as { autoCreate?: unknown } | undefined)?.autoCreate === true
 
-  const [composer, setComposer] = useState('')
+  /**
+   * Per-thread drafts: the composer holds the draft of the BOUND thread, so
+   * re-binding the tab (a thread switch, an archive fallback, the shell
+   * re-delivering `tab.meta.threadId`) must not carry one thread's words into
+   * another. Keyed by thread id; an unbound tab keeps its text under ''.
+   */
+  const draftsRef = useRef<Map<string, string>>(new Map())
+  const draftKeyOf = (id: string | undefined): string => id ?? ''
+  const [composer, setComposer] = useState(() => draftsRef.current.get(draftKeyOf(threadId)) ?? '')
+  /** The thread the current draft state belongs to (see the render-time swap
+   *  below). */
+  const [draftThread, setDraftThread] = useState(threadId)
+  // The binding can change WITHOUT remounting this view, so the draft is swapped
+  // during render (React's documented "derive state from props" pattern): the
+  // first render of the new binding already shows its own draft, and no frame
+  // ever shows the previous thread's text in the wrong composer.
+  if (draftThread !== threadId) {
+    setDraftThread(threadId)
+    setComposer(draftsRef.current.get(draftKeyOf(threadId)) ?? '')
+  }
   const [busy, setBusy] = useState<'starting' | 'sending' | 'saving' | 'archiving' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -1493,7 +1528,10 @@ export function SideChatView(props: {
     setEcho({ text, seq: cacheRef.current.entries.at(-1)?.event.seq ?? 0 })
     try {
       await api.sidechatPrompt(threadId, text)
+      // Only the SENDING thread's draft is cleared; every other thread keeps
+      // its own words.
       setComposer('')
+      draftsRef.current.delete(draftKeyOf(threadId))
       const field = composerRef.current
       if (field !== null) field.style.height = ''
       void fetchThread(threadId)
@@ -1762,7 +1800,9 @@ export function SideChatView(props: {
           placeholder={freshThread ? t('sideChatFirstPlaceholder') : t('sideChatComposerPlaceholder')}
           rows={1}
           onChange={event => {
-            setComposer(event.target.value)
+            const next = event.target.value
+            setComposer(next)
+            draftsRef.current.set(draftKeyOf(threadId), next)
             scheduleComposerGrow()
           }}
           onCompositionStart={() => { composingRef.current = true }}

@@ -434,6 +434,8 @@ export const ko: Record<string, string> = {
   sideChatRunError: '실행 실패: {message}',
   sideChatTerminalAborted: '이 턴이 중지되었습니다',
   sideChatTerminalMaxTokens: '출력 한도에 도달해 답변이 잘렸습니다',
+  sideChatToolArguments: '인자',
+  sideChatToolResult: '결과',
   sideChatTruncatedNotice: '이전 기록은 이 화면에 로드되지 않았습니다',
   sideChatModel: '모델',
   sideChatModelInherit: '기본 대화 상속(모델 카탈로그를 사용할 수 없음)',

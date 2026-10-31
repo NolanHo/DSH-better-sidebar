@@ -440,6 +440,8 @@ export const ru: Record<string, string> = {
   sideChatRunError: 'Сбой выполнения: {message}',
   sideChatTerminalAborted: 'Этот ход остановлен',
   sideChatTerminalMaxTokens: 'Достигнут лимит вывода — ответ обрезан',
+  sideChatToolArguments: 'Аргументы',
+  sideChatToolResult: 'Результат',
   sideChatTruncatedNotice: 'Более ранняя история не загружена в этом представлении',
   sideChatModel: 'Модель',
   sideChatModelInherit: 'Наследовать основной диалог (каталог моделей недоступен)',

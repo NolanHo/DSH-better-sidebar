@@ -442,6 +442,8 @@ export const tr: Record<string, string> = {
   sideChatRunError: 'Çalıştırma başarısız: {message}',
   sideChatTerminalAborted: 'Bu tur durduruldu',
   sideChatTerminalMaxTokens: 'Çıktı sınırına ulaşıldı — yanıt kesildi',
+  sideChatToolArguments: 'Bağımsız değişkenler',
+  sideChatToolResult: 'Sonuç',
   sideChatTruncatedNotice: 'Önceki geçmiş bu görünümde yüklenmedi',
   sideChatModel: 'Model',
   sideChatModelInherit: 'Ana sohbeti devral (model kataloğu yok)',

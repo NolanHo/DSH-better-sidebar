@@ -443,6 +443,8 @@ export const ar: Record<string, string> = {
   sideChatRunError: 'فشل التشغيل: {message}',
   sideChatTerminalAborted: 'تم إيقاف هذه الجولة',
   sideChatTerminalMaxTokens: 'تم بلوغ حدّ الإخراج — الإجابة مقطوعة',
+  sideChatToolArguments: 'الوسائط',
+  sideChatToolResult: 'النتيجة',
   sideChatTruncatedNotice: 'السجلّ السابق غير محمّل في هذا العرض',
   sideChatModel: 'الطراز',
   sideChatModelInherit: 'وراثة المحادثة الرئيسية (لا يتوفر كتالوج للطرازات)',
