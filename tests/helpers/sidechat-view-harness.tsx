@@ -105,6 +105,11 @@ export interface SidechatHarness {
   /** Extra view props merged over the defaults at mount() — the seam for the
    *  view's configurable behavior (`submitKey`). Set before mount(). */
   extraProps: Record<string, unknown>
+  /** A promise the `sidechat.prompt` route awaits before it answers, or null
+   *  for an immediate answer. Settable at any time: a spec holds a send IN
+   *  FLIGHT (the promise is what makes the request outlive the interaction),
+   *  then resolves it to land the response on a possibly re-bound view. */
+  promptGate: Promise<void> | null
   /** Render the real SideChatView bound to thread 't1' under session 'root'. */
   mount: () => RenderedRoot
   /** Flush React work + the stub's resolved promises (default two rounds). */
@@ -142,6 +147,8 @@ export function installSidechatHarness(overrides: Partial<SidechatWire> = {}): S
   vi.stubGlobal('WebSocket', FakeSocket)
 
   const promptCalls: Record<string, unknown>[] = []
+  /** Held by {@link SidechatHarness.promptGate}; read when a prompt arrives. */
+  let promptGate: Promise<void> | null = null
 
   vi.stubGlobal('fetch', async (url: string | URL, init?: RequestInit) => {
     const method = String(url).split('/').pop()
@@ -149,6 +156,7 @@ export function installSidechatHarness(overrides: Partial<SidechatWire> = {}): S
       // Recorded, never rejected: a keyboard gesture either reaches this route
       // (it submitted) or it does not.
       promptCalls.push(init?.body === undefined ? {} : JSON.parse(String(init.body)) as Record<string, unknown>)
+      if (promptGate !== null) await promptGate
       return jsonResponse({ ok: true, value: { accepted: true } })
     }
     if (method === 'sidechat.events') {
@@ -200,6 +208,8 @@ export function installSidechatHarness(overrides: Partial<SidechatWire> = {}): S
     host,
     promptCalls,
     extraProps,
+    get promptGate(): Promise<void> | null { return promptGate },
+    set promptGate(value: Promise<void> | null) { promptGate = value },
     mount: () => {
       mounted = renderRoot(createElement(SideChatView, { ...props, ...extraProps }))
       return mounted

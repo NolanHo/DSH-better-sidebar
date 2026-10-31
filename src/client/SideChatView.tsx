@@ -793,6 +793,10 @@ export function SideChatView(props: {
   /** The thread the current draft state belongs to (see the render-time swap
    *  below). */
   const [draftThread, setDraftThread] = useState(threadId)
+  /** The binding as of the LATEST render: a send that resolves after the reader
+   *  switched threads must not clear the composer of the new one. */
+  const bindingRef = useRef(threadId)
+  bindingRef.current = threadId
   // The binding can change WITHOUT remounting this view, so the draft is swapped
   // during render (React's documented "derive state from props" pattern): the
   // first render of the new binding already shows its own draft, and no frame
@@ -1519,6 +1523,10 @@ export function SideChatView(props: {
   const handleSend = async (): Promise<void> => {
     const text = composer.trim()
     if (text === '' || threadId === undefined || busy !== null) return
+    /** The thread this draft belongs to. The request can outlive the binding
+     *  (the reader switches threads while it is in flight), so every cleanup
+     *  below is scoped to THIS key instead of "whatever is bound now". */
+    const sendThreadKey = draftKeyOf(threadId)
     setBusy('sending')
     setError(null)
     // Local echo: the host accepts a message into the child's inbox and only
@@ -1529,9 +1537,11 @@ export function SideChatView(props: {
     try {
       await api.sidechatPrompt(threadId, text)
       // Only the SENDING thread's draft is cleared; every other thread keeps
-      // its own words.
-      setComposer('')
-      draftsRef.current.delete(draftKeyOf(threadId))
+      // its own words. The composer itself is cleared only while it still shows
+      // that thread — a binding switched mid-flight must not lose the draft the
+      // reader has already started typing there.
+      draftsRef.current.delete(sendThreadKey)
+      if (draftKeyOf(bindingRef.current) === sendThreadKey) setComposer('')
       const field = composerRef.current
       if (field !== null) field.style.height = ''
       void fetchThread(threadId)
