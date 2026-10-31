@@ -114,7 +114,19 @@ export type SidechatTranscriptRow =
    *  chunk accumulation. Original content-block indexes are never compacted;
    *  a live chunk that lacks a valid index keeps it undefined. */
   | { kind: 'assistant'; seq: number; text: string; settled: boolean; contentBlockIndex?: number }
-  | { kind: 'reasoning'; seq: number; text: string; settled: boolean; contentBlockIndex?: number }
+  | {
+    kind: 'reasoning'
+    seq: number
+    text: string
+    settled: boolean
+    contentBlockIndex?: number
+    /** The turn this row belongs to, when the log records one (the view groups
+     *  a Turn's work rows by it). */
+    turn?: number
+    /** True when that turn already ended (`turn/end` landed): its work rows are
+     *  settled and may be folded shut. */
+    turnEnded?: boolean
+  }
   | {
     kind: 'tool'
     seq: number
@@ -130,6 +142,10 @@ export type SidechatTranscriptRow =
     card?: SidechatToolCard
     /** `image` / `file` blocks of the paired result's content list. */
     resultAttachments?: readonly SidechatAttachment[]
+    /** The turn this call belongs to, and whether that turn already ended (see
+     *  `reasoning.turn`). */
+    turn?: number
+    turnEnded?: boolean
   }
   /** One `present` delivery (a compact deliverables card instead of a tool
    *  row). A `deliverables/presented` event with the same `callId` REPLACES
@@ -847,6 +863,23 @@ export function transcriptRows(entries: readonly SidebarHistoryEntry[], prev?: r
   let lastCompaction: CompactionFacts | undefined
   /** retryId → index of its retry row (a chain folds into one row). */
   const retryRows = new Map<string, number>()
+  /**
+   * Turns whose `turn/end` is in this log. Read UP FRONT (not while rows are
+   * being built) so a work row can carry its turn's settledness at creation:
+   * annotating afterwards would replace row objects on every pull and defeat
+   * the identity pass below.
+   */
+  const endedTurns = new Set<number>()
+  for (const event of events) {
+    if (event.type !== 'turn/end') continue
+    const turn = (event.data as Record<string, unknown>).turn
+    if (typeof turn === 'number' && Number.isInteger(turn)) endedTurns.add(turn)
+  }
+  /** The turn annotations of one row, from its event's `data.turn`. */
+  const turnFields = (turn: unknown): { turn?: number; turnEnded?: boolean } => {
+    if (typeof turn !== 'number' || !Number.isInteger(turn)) return {}
+    return { turn, ...(endedTurns.has(turn) ? { turnEnded: true } : {}) }
+  }
   for (let index = 0; index < events.length; index++) {
     const event = events[index]
     if (event === undefined) continue
@@ -1054,6 +1087,7 @@ export function transcriptRows(entries: readonly SidebarHistoryEntry[], prev?: r
           rows.push({ kind, seq: event.seq, text: chunk.text, settled: false,
             ...(typeof blockIndex === 'number' && Number.isSafeInteger(blockIndex) && blockIndex >= 0
               ? { contentBlockIndex: blockIndex } : {}),
+            ...(kind === 'reasoning' ? turnFields(data.turn) : {}),
           })
         }
         break
@@ -1086,7 +1120,14 @@ export function transcriptRows(entries: readonly SidebarHistoryEntry[], prev?: r
           if (block === null || typeof block !== 'object') return []
           const candidate = block as { type?: unknown; text?: unknown }
           if (candidate.type === 'reasoning' && typeof candidate.text === 'string' && candidate.text !== '') {
-            return [{ kind: 'reasoning', seq: event.seq, text: candidate.text, settled: true, contentBlockIndex }]
+            return [{
+              kind: 'reasoning',
+              seq: event.seq,
+              text: candidate.text,
+              settled: true,
+              contentBlockIndex,
+              ...turnFields(data.turn),
+            }]
           }
           if (candidate.type === 'text' && typeof candidate.text === 'string' && candidate.text !== '') {
             return [{ kind: 'assistant', seq: event.seq, text: candidate.text, settled: true, contentBlockIndex }]
@@ -1131,7 +1172,16 @@ export function transcriptRows(entries: readonly SidebarHistoryEntry[], prev?: r
         const card = callCard(name, args)
         const rowIndex = rows.length
         if (typeof callId === 'string') callRows.set(callId, rowIndex)
-        rows.push({ kind: 'tool', seq: event.seq, name, failed: false, args, executing: true, ...(card !== undefined ? { card } : {}) })
+        rows.push({
+          kind: 'tool',
+          seq: event.seq,
+          name,
+          failed: false,
+          args,
+          executing: true,
+          ...(card !== undefined ? { card } : {}),
+          ...turnFields(data.turn),
+        })
         break
       }
       case 'tool/result': {
@@ -1235,6 +1285,11 @@ export function sidechatRowKey(row: SidechatTranscriptRow): string {
     : `${row.kind}:${row.seq}`
 }
 
+/** The turn annotation of one row (absent for the kinds that carry none). */
+function turnAnnotationOf(row: SidechatTranscriptRow): { turn?: number; turnEnded?: boolean } {
+  return row.kind === 'reasoning' || row.kind === 'tool' ? row : {}
+}
+
 /** Whether two rows carry identical display content (identity fields plus
  *  every rendered field of their kind). */
 function rowsEqual(a: SidechatTranscriptRow, b: SidechatTranscriptRow): boolean {
@@ -1253,8 +1308,13 @@ function rowsEqual(a: SidechatTranscriptRow, b: SidechatTranscriptRow): boolean 
     case 'assistant':
     case 'reasoning': {
       const other = b as typeof a
+      // The turn annotation is compared too: `turnEnded` flips when the turn
+      // ends, and a row re-adopted with the old flag would never fold.
+      const left = turnAnnotationOf(a)
+      const right = turnAnnotationOf(b)
       return a.text === other.text && a.settled === other.settled
         && a.contentBlockIndex === other.contentBlockIndex
+        && left.turn === right.turn && left.turnEnded === right.turnEnded
     }
     case 'tool': {
       // The card is NOT compared by value: its content is a pure function of
@@ -1264,9 +1324,12 @@ function rowsEqual(a: SidechatTranscriptRow, b: SidechatTranscriptRow): boolean 
       // an equal compare, and an equal compare re-adopting the OLD card
       // object (identical content, stale reference) only helps React skip.
       const other = b as typeof a
+      const left = turnAnnotationOf(a)
+      const right = turnAnnotationOf(b)
       return a.name === other.name && a.failed === other.failed && a.args === other.args
         && a.resultText === other.resultText && a.executing === other.executing
         && attachmentsEqual(a.resultAttachments, other.resultAttachments)
+        && left.turn === right.turn && left.turnEnded === right.turnEnded
     }
     case 'deliverables': {
       const other = b as typeof a

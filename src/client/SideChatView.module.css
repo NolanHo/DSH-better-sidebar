@@ -759,6 +759,46 @@
 }
 
 /* ── motion vocabulary (crossfade only, ≤200ms; loops reduced-motion off) */
+/* One Turn's work-detail disclosure (R1): the line is chrome, the body holds
+ * the turn's process rows. `display: contents` on their mount boxes makes the
+ * rows flex children of the body, so the transcript's own rhythm survives. */
+.sidechatTurnFold {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sidechatTurnFoldBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* The always-visible line: the same quiet row typography as the other
+ * collapsible rows, with the marker hidden in favour of the chevron. */
+.sidechatTurnFoldLine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  list-style: none;
+  cursor: pointer;
+  font-size: var(--dsh-content-font-size-secondary, 13px);
+  line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
+  font-family: var(--dsw-font-family);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.sidechatTurnFoldLine::-webkit-details-marker {
+  display: none;
+}
+
+.sidechatTurnFold[open] > .sidechatTurnFoldLine .sidechatRowChevron {
+  transform: rotate(90deg);
+}
+
 /* Image / file content blocks (D13): a row's own attachments sit under its
  * text, wrapped so a wide screenshot still leaves the column intact. */
 .sidechatAttachments {

@@ -454,6 +454,7 @@ export const sv: Record<string, string> = {
   sideChatBlockFailed: 'Misslyckades',
   sideChatBlockDone: 'Klar',
   sideChatBlockNoOutput: '(ingen utdata)',
+  sideChatWorkDetails: 'Arbetsdetaljer',
   sideChatCompactionSummary: 'Tidigare historik komprimerades',
   sideChatCompactionItems: '{count} poster ihopfällda',
   sideChatCompactionTokens: '~{tokens} tok',

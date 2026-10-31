@@ -462,6 +462,7 @@ export const it: Record<string, string> = {
   sideChatBlockFailed: 'Non riuscito',
   sideChatBlockDone: 'Completato',
   sideChatBlockNoOutput: '(nessun output)',
+  sideChatWorkDetails: 'Dettagli del lavoro',
   sideChatCompactionSummary: 'Cronologia precedente compattata',
   sideChatCompactionItems: '{count} elementi compressi',
   sideChatCompactionTokens: '~{tokens} tok',

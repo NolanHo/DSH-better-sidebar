@@ -4,6 +4,9 @@
 
 ### 未发布
 
+- 🗂 **侧边对话跟随主会话的「工作细节」设置**：主会话把一轮的思考与工具行收进一个可展开的「工作细节」控制行，侧边对话却完全不读这个偏好——同一段对话在右侧面板里永远是一堵过程行，读者把设置调成「精简」也毫无变化。现在侧边对话从宿主的公开设置服务（`ctx.get('configForms')` → `ui-chat`，结构性探针，不进 inject）读 `transcriptView` 与 `collapseTiming`，并按宿主同一套规则归一（`normal` / `expanded` → `detailed`；服务缺失、表单尚未 ready 或值不可用时保持客户端默认——Web 为 `detailed`、桌面壳为 `standard`）。`compact` / `standard` / `detailed` 下，**每一轮已结算的过程行**（思考 / 工具）收进一个 `<details data-sidechat-turn-fold>`（默认收起，行上取 `sideChatWorkDetails` 文案，行仍在 DOM 里）；**未结算的轮次**有同一控制行但保持展开；`verbose` 完全不折叠。提问与回答永远不进折叠。`collapseTiming` 为 `next-input` 时最新一轮保持展开、`completion`（默认）时照常收起；`standard` / `detailed` 还会把运行中的工具名/命令或思考首行写到该控制行的 tooltip 上，`compact` 只留通用文案。设置变更实时生效（订阅推送即重渲染，无需重挂载）。
+  - 🧪 测试：`tests/sidechat-work-details-mode.spec.tsx`（三种折叠模式各一控制行且默认收起、过程行仍在 DOM、提问/回答不在折叠内、`next-input` 保留最新一轮、`verbose` 不折叠、未结算轮次不隐藏、运行行在 `compact` 无细节而 `standard`/`detailed` 有、订阅推送实时跟随、无服务/未 ready/legacy 值都落到正确默认）。
+
 - 🧭 **压缩与重试现在有交代，压缩检查点也不再冒充用户消息或「已注入上下文」**：压缩的检查点是一条 `surfaceOp: replace` 的 `user/message`，而 user 分支此前没有 replacement 判定，于是它按 `source.kind` 被 `isContextInjectionMessage` 收成「已注入上下文」行——历史被压缩的那一刻，转录却宣称「有上下文被注入」，展开后满屏是被替换掉的旧对话摘要。现在 **replacement 判定前置到注入判定之前**：replacement `user/message` 既不是 user 行也不是注入行。只有 checkpoint（`source.kind === 'compact-checkpoint'`）落地才出**一行** `compaction`（seq 取 checkpoint 自己的 seq，带 summary 与 shadowed 项数 / Token 数；summary 收在 `<details>` 里，行上只有标签与计数）；`compaction/start|summary|end` 单独不出行；summary 不在窗口内也仍有一行、不空白。重试按 `retryId` 折叠成一行：`llm/retry` 更新该行、`llm/retry-started` 只把状态改成 `started` 不再加行，行 seq 保持链上首个事件（读作「已重试 N 次」+ provider 的失败原因）；无 `retryId` 不出行，`mode: 'always'` 不编造上限。4 个新文案进全部 21 份词典。
   - 🧪 测试：`tests/sidechat-compaction-retry-rows.spec.tsx`（整笔事务恰好一行且落在 checkpoint、无 checkpoint 不出行、summary 缺失仍有一行、摘要只由 compaction 行承载且不成为可见行、计数按词典渲染；重试折叠成一行、`retry-started` 不加行、`always` 无上限、无 `retryId` 不出行、行上显示「已重试 N 次」与失败原因）。
 

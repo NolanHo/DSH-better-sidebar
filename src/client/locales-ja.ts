@@ -471,6 +471,7 @@ export const ja: Record<string, string> = {
   sideChatBlockFailed: '失敗',
   sideChatBlockDone: '完了',
   sideChatBlockNoOutput: '（出力なし）',
+  sideChatWorkDetails: '作業の詳細',
   sideChatCompactionSummary: '以前の履歴を圧縮しました',
   sideChatCompactionItems: '{count} 件を折りたたみ',
   sideChatCompactionTokens: '約 {tokens} tok',

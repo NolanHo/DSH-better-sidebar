@@ -70,6 +70,11 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { markdownLabels, markdownTextProps } from './markdown-labels.tsx'
 import { producedFilePaths, resolveProducedPath } from './sidechat-mentions.ts'
+import {
+  foldsSettledTurns,
+  showsLiveProcessDetail,
+  useSidechatWorkDetails,
+} from './sidechat-work-details.ts'
 import { COMPOSITION_END_GRACE_MS, compositionPhase, isGuardedKeydown, isSubmitGesture } from './composer-keymap.ts'
 import { SidechatAssistantRow, type SidechatRowSurfaceBinding } from './SidechatAssistantRow.tsx'
 import { SidechatAttachments } from './SidechatAttachments.tsx'
@@ -481,6 +486,65 @@ function CollapsibleRow(props: {
   )
 }
 
+/** Whether a row is a WORK-DETAIL row: the only rows a Turn fold wraps (a
+ *  question, an answer, a delivery or an attachment is content, not work). */
+function isWorkRow(
+  row: SidechatTranscriptRow,
+): row is Extract<SidechatTranscriptRow, { kind: 'reasoning' | 'tool' }> {
+  return row.kind === 'reasoning' || row.kind === 'tool'
+}
+
+/** Longest live-detail snippet a running Turn's line carries. */
+const RUNNING_LINE_MAX = 80
+
+/**
+ * What a RUNNING turn's control line says beyond its label (host
+ * `liveProcessDetail`): the running tool with its one-line arguments, or the
+ * first line of the reasoning being streamed.
+ * @param row - the latest work row of the running turn.
+ * @returns the detail, or undefined when the row has nothing to quote.
+ */
+function runningProcessLine(
+  row: Extract<SidechatTranscriptRow, { kind: 'reasoning' | 'tool' }>,
+): string | undefined {
+  if (row.kind === 'tool') {
+    const summary = toolArgsSummary(row.args)
+    return summary === '' ? row.name : `${row.name} · ${summary}`
+  }
+  const first = row.text.split('\n', 1)[0]?.trim() ?? ''
+  return first === '' ? undefined : first.slice(0, RUNNING_LINE_MAX)
+}
+
+/**
+ * One Turn's work-detail disclosure (the host's `foldCompletedTurns`): the
+ * line is the localized label (plus live detail while the turn runs), and its
+ * WORK rows live in the body. Question and answer rows never enter it.
+ */
+function TurnFold(props: {
+  rows: React.ReactNode[]
+  liveDetail: string | undefined
+  open: boolean
+}): React.ReactNode {
+  return (
+    <details className={css.sidechatTurnFold} data-sidechat-turn-fold="" open={props.open}>
+      {/* The live detail rides the line's TITLE, not its text: the line stays
+          the reader's fixed anchor while a turn runs, and a tool name in the
+          summary text would collide with every "find the row for tool X"
+          lookup that keys on summary text. */}
+      <summary
+        className={css.sidechatTurnFoldLine}
+        {...(props.liveDetail === undefined ? {} : { title: props.liveDetail })}
+      >
+        <span className={css.sidechatRowChevron}>
+          <IconChevronRightOutlineRegular size={12} />
+        </span>
+        <span className={css.sidechatRowLabel}>{t('sideChatWorkDetails')}</span>
+      </summary>
+      <div className={css.sidechatTurnFoldBody}>{props.rows}</div>
+    </details>
+  )
+}
+
 /** The host Block body for a structured tool card (main-conversation atoms:
  *  terminal surface, diff hunks, line-numbered read window). */
 function toolCardBody(card: SidechatToolCard, executing: boolean, labels: RowLabels): React.ReactNode {
@@ -787,6 +851,10 @@ export function SideChatView(props: {
 }): React.ReactNode {
   const { ctx, scope, tab, visible } = props
   const submitKey = props.submitKey ?? SIDECHAT_SUBMIT_KEY_DEFAULT
+  /** The main conversation's work-details preference, read live (see
+   *  sidechat-work-details.ts): the two transcripts of one conversation must
+   *  agree about how much process detail to show. */
+  const workDetails = useSidechatWorkDetails(ctx)
   const rowLabels = useMemo<RowLabels>(() => {
     // Shared Block chrome: copy buttons reuse the sidebar's copy pair, the
     // collapse/expand family is common to every Block kind.
@@ -1691,8 +1759,9 @@ export function SideChatView(props: {
    * no part in the flex layout, so the rows keep their own alignment and the
    * scroller's gap.
    */
-  const rowNodes = useMemo(
-    () => visibleRows.map(row => (
+  const rowNodes = useMemo(() => {
+    /** One row in its mount box (the scroller's `gap` still separates rows). */
+    const mount = (row: SidechatTranscriptRow): React.ReactNode => (
       <div
         key={`${threadId ?? 'unbound'}:${sidechatRowKey(row)}`}
         className={css.sidechatRowMount}
@@ -1700,9 +1769,56 @@ export function SideChatView(props: {
       >
         {renderRow(row, rowLabels, rowSurface, genuiRowSurface)}
       </div>
-    )),
-    [visibleRows, threadId, rowLabels, rowSurface, genuiRowSurface],
-  )
+    )
+    if (!foldsSettledTurns(workDetails.mode)) return visibleRows.map(mount)
+    /** The newest turn whose `turn/end` landed: the one `next-input` keeps open. */
+    let newestCompletedTurn: number | undefined
+    for (const row of rows) {
+      if (isWorkRow(row) && row.turnEnded === true) newestCompletedTurn = row.turn
+    }
+    const nodes: React.ReactNode[] = []
+    let index = 0
+    while (index < visibleRows.length) {
+      const row = visibleRows[index]
+      if (row === undefined) {
+        index += 1
+        continue
+      }
+      if (!isWorkRow(row) || row.turn === undefined) {
+        nodes.push(mount(row))
+        index += 1
+        continue
+      }
+      // One contiguous run of THIS turn's work rows: a turn whose work is split
+      // by an answered question would draw one control per run, which keeps the
+      // answer readable instead of hiding it inside the fold.
+      const turn = row.turn
+      const run: SidechatTranscriptRow[] = []
+      while (index < visibleRows.length) {
+        const candidate = visibleRows[index]
+        if (candidate === undefined || !isWorkRow(candidate) || candidate.turn !== turn) break
+        run.push(candidate)
+        index += 1
+      }
+      const settled = run.some(entry => isWorkRow(entry) && entry.turnEnded === true)
+      const open = !settled
+        || (workDetails.collapseTiming === 'next-input' && turn === newestCompletedTurn)
+      const last = run.at(-1)
+      const liveDetail = !settled && showsLiveProcessDetail(workDetails.mode) && last !== undefined && isWorkRow(last)
+        ? runningProcessLine(last)
+        : undefined
+      const first = run[0]
+      nodes.push(
+        <TurnFold
+          key={`fold:${threadId ?? 'unbound'}:${String(turn)}:${first === undefined ? '' : sidechatRowKey(first)}`}
+          open={open}
+          liveDetail={liveDetail}
+          rows={run.map(mount)}
+        />,
+      )
+    }
+    return nodes
+  }, [visibleRows, rows, threadId, rowLabels, rowSurface, genuiRowSurface, workDetails])
 
   const handleSend = async (): Promise<void> => {
     const text = composer.trim()

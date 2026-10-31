@@ -602,8 +602,10 @@ describe('present deliverables rows', () => {
 
   it('leaves malformed or empty call files on the generic tool row', () => {
     for (const args of [JSON.stringify({ files: [] }), JSON.stringify({ files: [{ path: 7 }] })]) {
+      // `turn` is the work-details annotation the view folds a turn's process
+      // rows by (no `turnEnded`: this log carries no `turn/end`).
       expect(transcriptRows([seed, presentCall(1, 'cp', args)])).toEqual([
-        { kind: 'tool', seq: 1, name: 'present', failed: false, args, executing: true },
+        { kind: 'tool', seq: 1, name: 'present', failed: false, args, executing: true, turn: 1 },
       ])
     }
   })

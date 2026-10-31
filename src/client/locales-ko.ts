@@ -463,6 +463,7 @@ export const ko: Record<string, string> = {
   sideChatBlockFailed: '실패',
   sideChatBlockDone: '완료',
   sideChatBlockNoOutput: '(출력 없음)',
+  sideChatWorkDetails: '작업 세부 정보',
   sideChatCompactionSummary: '이전 기록이 압축되었습니다',
   sideChatCompactionItems: '{count}개 항목 접힘',
   sideChatCompactionTokens: '약 {tokens} tok',

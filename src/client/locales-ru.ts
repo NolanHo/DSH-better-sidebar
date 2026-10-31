@@ -469,6 +469,7 @@ export const ru: Record<string, string> = {
   sideChatBlockFailed: 'Ошибка',
   sideChatBlockDone: 'Готово',
   sideChatBlockNoOutput: '(нет вывода)',
+  sideChatWorkDetails: 'Детали работы',
   sideChatCompactionSummary: 'Прежняя история сжата',
   sideChatCompactionItems: 'Свёрнуто элементов: {count}',
   sideChatCompactionTokens: '~{tokens} tok',

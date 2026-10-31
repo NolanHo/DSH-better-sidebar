@@ -486,6 +486,7 @@ export const zhTW: Record<string, string> = {
   sideChatBlockFailed: '失敗',
   sideChatBlockDone: '完成',
   sideChatBlockNoOutput: '（無輸出）',
+  sideChatWorkDetails: '工作細節',
   sideChatCompactionSummary: '更早的歷史已壓縮',
   sideChatCompactionItems: '{count} 項已折疊',
   sideChatCompactionTokens: '約 {tokens} tok',

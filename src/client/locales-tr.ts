@@ -471,6 +471,7 @@ export const tr: Record<string, string> = {
   sideChatBlockFailed: 'Başarısız',
   sideChatBlockDone: 'Tamamlandı',
   sideChatBlockNoOutput: '(çıktı yok)',
+  sideChatWorkDetails: 'Çalışma ayrıntıları',
   sideChatCompactionSummary: 'Önceki geçmiş sıkıştırıldı',
   sideChatCompactionItems: '{count} öğe katlandı',
   sideChatCompactionTokens: '~{tokens} tok',

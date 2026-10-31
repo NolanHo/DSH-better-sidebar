@@ -473,6 +473,7 @@ export const pl: Record<string, string> = {
   sideChatBlockFailed: 'Niepowodzenie',
   sideChatBlockDone: 'Zakończono',
   sideChatBlockNoOutput: '(brak wyniku)',
+  sideChatWorkDetails: 'Szczegóły pracy',
   sideChatCompactionSummary: 'Wcześniejsza historia została skrócona',
   sideChatCompactionItems: 'Złożono {count} elementów',
   sideChatCompactionTokens: '~{tokens} tok',

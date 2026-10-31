@@ -471,6 +471,7 @@ export const hi: Record<string, string> = {
   sideChatBlockFailed: 'विफल',
   sideChatBlockDone: 'पूर्ण',
   sideChatBlockNoOutput: '(कोई आउटपुट नहीं)',
+  sideChatWorkDetails: 'कार्य विवरण',
   sideChatCompactionSummary: 'पिछला इतिहास संक्षिप्त किया गया',
   sideChatCompactionItems: '{count} आइटम समेटे गए',
   sideChatCompactionTokens: '~{tokens} tok',

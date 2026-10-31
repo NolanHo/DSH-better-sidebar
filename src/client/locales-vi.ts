@@ -471,6 +471,7 @@ export const vi: Record<string, string> = {
   sideChatBlockFailed: 'Thất bại',
   sideChatBlockDone: 'Hoàn tất',
   sideChatBlockNoOutput: '(không có đầu ra)',
+  sideChatWorkDetails: 'Chi tiết công việc',
   sideChatCompactionSummary: 'Lịch sử trước đó đã được nén',
   sideChatCompactionItems: 'Đã gấp {count} mục',
   sideChatCompactionTokens: '~{tokens} tok',
