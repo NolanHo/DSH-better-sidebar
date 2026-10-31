@@ -437,6 +437,32 @@ function retryFailureMessage(failure: unknown): string | undefined {
   return typeof message === 'string' && message !== '' ? message : undefined
 }
 
+/**
+ * Whether one `tool/result` reports a FAILED invocation.
+ *
+ * The host channel is the tool-role message's own `isError` (`llm`'s
+ * `ToolResultMessage`, and the flag its own produced-path scan reads); 0.1.6
+ * logs carry the same flag on the wrapping `tool-result` block instead, which
+ * this module reads everywhere else. A plugin-era `data.error` stays as the last
+ * fallback so an older fixture or a foreign producer is still read as failed —
+ * a tool that throws a BARE error (no `error.info`) sets `isError` and nothing
+ * else, which is exactly the case the fallback alone missed.
+ * @param data - one `tool/result` event's data record.
+ * @returns true when the result is a failure.
+ */
+function resultFailed(data: Record<string, unknown>): boolean {
+  const message = data.message as { isError?: unknown; content?: unknown } | undefined
+  if (message?.isError === true) return true
+  if (Array.isArray(message?.content)) {
+    for (const block of message.content) {
+      if (block === null || typeof block !== 'object') continue
+      const wrapper = block as { type?: unknown; isError?: unknown }
+      if (wrapper.type === 'tool-result' && wrapper.isError === true) return true
+    }
+  }
+  return data.error !== undefined
+}
+
 /** The `image` / `file` blocks of a tool/result message's content list (under
  *  either logged shape — {@link resultBlocks}). */
 function resultAttachmentsOf(data: Record<string, unknown>): SidechatAttachment[] {
@@ -1119,7 +1145,7 @@ export function transcriptRows(entries: readonly SidebarHistoryEntry[], prev?: r
         // and the call stops being associated with a card.
         const present = callId === undefined ? undefined : presentCalls.get(callId)
         if (callId !== undefined && present !== undefined) {
-          if (data.error !== undefined) {
+          if (resultFailed(data)) {
             presentCalls.delete(callId)
             const card = rows[present.rowIndex]
             if (card !== undefined && card.kind === 'deliverables') {
@@ -1137,7 +1163,7 @@ export function transcriptRows(entries: readonly SidebarHistoryEntry[], prev?: r
           break
         }
         const rowIndex = callId === undefined ? undefined : callRows.get(callId)
-        const failed = data.error !== undefined
+        const failed = resultFailed(data)
         // A result's own image/file blocks belong to the row whose call
         // produced them (they render inside its disclosed body).
         const resultAttachments = resultAttachmentsOf(data)

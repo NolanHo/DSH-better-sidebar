@@ -35,6 +35,35 @@ const MUTATION_PATH_KEYS: Readonly<Record<string, string>> = {
   str_replace_editor: 'path',
 }
 
+/** The `str_replace_editor` commands that MUTATE a file (host
+ *  `editorMutationPath`): `view` reads, and any other command mutates nothing,
+ *  so neither may put its target into the produced vocabulary. */
+const EDITOR_MUTATION_COMMANDS: ReadonlySet<string> = new Set(['create', 'str_replace', 'insert'])
+
+/** The non-blank path a list of arguments names, or undefined. */
+function pathValue(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() !== '' ? value : undefined
+}
+
+/**
+ * The file one tool row produced, or undefined when the call is not a mutation
+ * of a file (see {@link MUTATION_PATH_KEYS} and
+ * {@link EDITOR_MUTATION_COMMANDS}).
+ * @param row - one mapped `tool` row.
+ * @returns the produced path exactly as the call spelled it.
+ */
+function producedTargetOf(row: Extract<SidechatTranscriptRow, { kind: 'tool' }>): string | undefined {
+  const pathKey = MUTATION_PATH_KEYS[row.name]
+  if (pathKey === undefined) return undefined
+  const args = parseArgsObject(row.args)
+  if (args === undefined) return undefined
+  if (row.name === 'str_replace_editor') {
+    const command = args.command
+    if (typeof command !== 'string' || !EDITOR_MUTATION_COMMANDS.has(command)) return undefined
+  }
+  return pathValue(args[pathKey])
+}
+
 /**
  * Every path this thread produced, in first-seen order and deduplicated: the
  * target of a successful (`failed !== true`) mutation call, plus every
@@ -50,11 +79,8 @@ export function producedFilePaths(rows: readonly SidechatTranscriptRow[]): strin
   }
   for (const row of rows) {
     if (row.kind === 'tool') {
-      const pathKey = MUTATION_PATH_KEYS[row.name]
-      if (pathKey === undefined || row.failed === true) continue
-      const args = parseArgsObject(row.args)
-      if (args === undefined) continue
-      add(args[pathKey])
+      if (row.failed === true) continue
+      add(producedTargetOf(row))
     } else if (row.kind === 'deliverables') {
       for (const file of row.files) add(file.path)
     }
