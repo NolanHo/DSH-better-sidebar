@@ -759,26 +759,34 @@
 }
 
 /* ── motion vocabulary (crossfade only, ≤200ms; loops reduced-motion off) */
-/* The fork point: a quiet disclosure above the first row, in the same chrome
- * voice as the truncation notice. The line is one scrolling sentence — label,
- * the parent's question, then the parent session — so it truncates instead of
- * pushing the transcript down. */
+/* The fork point: one quiet card above the first row — the truncation
+ * notice's "a fact, not a warning" volume, in a framed box of its own so the
+ * reader sees where the side thread came from without it reading as an alert.
+ * The line is a single row (label · question · parent session); the question
+ * takes the slack and ellipsises, so a long parent question never pushes the
+ * transcript down or wraps the card. */
 .sidechatForkPoint {
   flex: none;
   min-width: 0;
-}
-
-.sidechatForkLine {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  min-width: 0;
-  list-style: none;
-  cursor: pointer;
+  padding: 6px 10px;
+  border: 1px solid var(--dsw-alias-hairline);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-2);
   font-size: var(--dsh-content-font-size-secondary, 13px);
   line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
   font-family: var(--dsw-font-family);
   color: var(--dsw-alias-label-tertiary);
+}
+
+.sidechatForkLine {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  list-style: none;
+  cursor: pointer;
 }
 
 .sidechatForkLine::-webkit-details-marker {
@@ -794,7 +802,11 @@
   color: var(--dsw-alias-label-secondary);
 }
 
+/* `min-width: 0` is what lets a flex item actually shrink below its content
+ * width — without it the ellipsis below never engages and the question pushes
+ * the parent session off the line. */
 .sidechatForkQuestion {
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -804,20 +816,34 @@
 
 .sidechatForkParent {
   flex: none;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--dsw-alias-label-tertiary);
 }
 
+/* The expanded answer tail: a hairline separates it from the line, and the
+ * text scrolls in place past its cap instead of stretching the card. */
 .sidechatForkBody {
   margin-top: 6px;
-  padding-left: 18px;
+  padding-top: 6px;
+  border-top: 1px solid var(--dsw-alias-hairline);
   min-width: 0;
 }
 
 .sidechatForkAnswerLabel {
-  font-size: var(--dsh-content-font-size-secondary, 13px);
-  line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
-  font-family: var(--dsw-font-family);
+  margin-bottom: 2px;
   color: var(--dsw-alias-label-tertiary);
+}
+
+.sidechatForkAnswer {
+  max-height: 180px;
+  overflow-y: auto;
+  min-width: 0;
+  color: var(--dsw-alias-label-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* One Turn's work-detail disclosure (R1): the line is chrome, the body holds

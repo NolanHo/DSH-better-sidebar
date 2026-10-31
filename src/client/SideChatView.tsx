@@ -2036,7 +2036,11 @@ export function SideChatView(props: {
               <span className={css.sidechatForkLabel}>{t('sideChatForkBanner')}</span>
               {forkPoint.user === undefined
                 ? null
-                : <span className={css.sidechatForkQuestion}>{forkPoint.user.text}</span>}
+                : (
+                  <span className={css.sidechatForkQuestion} data-sidechat-fork-question="">
+                    {forkPoint.user.text}
+                  </span>
+                )}
               {parentTitle === undefined
                 ? null
                 : <span className={css.sidechatForkParent}>{parentTitle}</span>}
@@ -2046,7 +2050,7 @@ export function SideChatView(props: {
               : (
                 <div className={css.sidechatForkBody}>
                   <div className={css.sidechatForkAnswerLabel}>{t('sideChatForkAnswer')}</div>
-                  <div className={css.sidechatRowProse}>{forkPoint.assistant.text}</div>
+                  <div className={css.sidechatForkAnswer}>{forkPoint.assistant.text}</div>
                 </div>
               )}
           </details>

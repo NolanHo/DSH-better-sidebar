@@ -44,6 +44,8 @@
  * it into the envelope, exactly as the host route does — the same technique the
  * truncation notice spec uses for `truncated`.
  */
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { installSidechatHarness, type SidechatHarness } from './helpers/sidechat-view-harness.tsx'
 import { t } from '../src/client/locales.ts'
@@ -257,6 +259,76 @@ describe('fork point banner (R2)', () => {
         mountedRows(rendered.container).length,
         'it does not change how many rows mount',
       ).toBe(baseline)
+    } finally {
+      rendered.unmount()
+    }
+  })
+})
+
+/** The stylesheet the transcript's chrome (and the fork line) is styled by. */
+const SHEET = 'src/client/SideChatView.module.css'
+
+/** The sheet's text, comments stripped (a declaration scan, not a parser). */
+function stylesheet(): string {
+  return readFileSync(resolve(process.cwd(), SHEET), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+}
+
+/** Every declaration block of the rules that target `name`. */
+function ruleBodiesFor(name: string, source: string): string[] {
+  const pattern = new RegExp(`\\.${name}\\b[^{}]*\\{([^{}]*)\\}`, 'g')
+  return [...source.matchAll(pattern)].map(match => match[1] ?? '')
+}
+
+/** Whether a declaration block nails its box to one visual line. */
+function forcesOneLine(declarations: string): boolean {
+  return /white-space:\s*nowrap/.test(declarations) || /line-clamp:\s*1\b/.test(declarations)
+}
+
+/**
+ * Whether `node` is constrained to one visual line — by its own inline style, or
+ * by a module rule for one of its classes (the class names jsdom sees keep the
+ * local part, so the sheet's `.name` is found by containment).
+ * @param node - the question node.
+ */
+function singleLineConstrained(node: HTMLElement): boolean {
+  const inline = node.style
+  if (inline.getPropertyValue('white-space').includes('nowrap')) return true
+  if (inline.getPropertyValue('line-clamp') === '1') return true
+  if (inline.getPropertyValue('-webkit-line-clamp') === '1') return true
+  const source = stylesheet()
+  const sheetClasses = [...source.matchAll(/\.([A-Za-z][\w-]*)/g)].map(match => match[1] as string)
+  const tokens = (node.getAttribute('class') ?? '').split(/\s+/).filter(token => token !== '')
+  for (const token of tokens) {
+    for (const name of sheetClasses) {
+      if (!token.includes(name)) continue
+      if (ruleBodiesFor(name, source).some(body => forcesOneLine(body))) return true
+    }
+  }
+  return false
+}
+
+describe('fork point banner: the question line (R3)', () => {
+  it('shows the parent question on one visual line under a stable hook', async () => {
+    // A real question can be long and multi-line; the banner summarises it.
+    const question = 'FIRST LINE OF THE PARENT QUESTION\nSECOND LINE OF IT\nTHIRD LINE OF IT'
+    reportFork({ cutSeq: 0, user: { seq: 3, text: question }, assistant: { seq: 4, text: PARENT_ANSWER } })
+    const rendered = await mountTranscript()
+    try {
+      const details = bannerOf(rendered.container) as HTMLElement
+      expect(details, 'the fork point is shown').not.toBeNull()
+      const summary = details.querySelector('summary')
+      const node = details.querySelector<HTMLElement>('[data-sidechat-fork-question]')
+      expect(node, 'the question carries its own stable hook').not.toBeNull()
+      const questionNode = node as HTMLElement
+      expect(summary?.contains(questionNode), 'it belongs to the always-visible line').toBe(true)
+      expect(
+        questionNode.textContent,
+        'the line keeps the whole summary (the route already capped it)',
+      ).toBe(question)
+      expect(
+        singleLineConstrained(questionNode),
+        'the stylesheet nails the question to one visual line (nowrap or line-clamp: 1)',
+      ).toBe(true)
     } finally {
       rendered.unmount()
     }

@@ -38,6 +38,13 @@
  * 6. The field is additive: `events`, `live`, `pending` and `truncated` keep
  *    their shapes and values, and `events` is still the CUT tail (the parent
  *    prefix must not leak into the transcript through the new field's provider).
+ * 7. A runtime CONTEXT injection is not the reader's question. Loaders append
+ *    `user/message` events whose `data.source.kind` is their own kind
+ *    (`time-context`, `tmux-context`, `plugin:…` — never `'user'`): a reminder
+ *    the host wrote into the log, not something the reader typed. `user` only
+ *    considers messages whose `source.kind` is ABSENT (old logs) or exactly
+ *    `'user'`, falls back to the last such message, and stays absent when the
+ *    prefix carries none.
  * ==================================================================
  *
  * Kept in its own file (rather than appended to tests/sidechat-routes.spec.ts)
@@ -291,5 +298,101 @@ describe('sidechat.events fork point (R2)', () => {
     const result = await eventsRoute(seededLog(), { afterSeq: 7 })
     expect(result.events.map(event => event.seq), 'the delta itself is unchanged').toEqual([8])
     expect('fork' in result ? result.fork : undefined, 'only the first pull carries it').toBeUndefined()
+  })
+})
+
+/** A runtime CONTEXT injection: logged as a `user/message`, but its
+ *  `data.source.kind` is the loader's own kind (host
+ *  `context/time-context/src/index.ts:16,221`), so the reader never typed it. */
+function contextEvent(seq: number, kind: string, text: string): unknown {
+  return {
+    type: 'user/message',
+    seq,
+    time: seq * 1_000,
+    surfaceOp: 'append',
+    data: {
+      id: `mc-${String(seq)}`,
+      role: 'user',
+      content: [{ type: 'text', text }],
+      source: { kind, form: 'snapshot', sections: [{ name: kind, text }] },
+    },
+  }
+}
+
+/** A `user/message` the reader typed, with the source marker omitted (old logs). */
+function sourcelessUserEvent(seq: number, text: string): unknown {
+  return {
+    type: 'user/message',
+    seq,
+    time: seq * 1_000,
+    surfaceOp: 'append',
+    data: { id: `ms-${String(seq)}`, role: 'user', content: [{ type: 'text', text }] },
+  }
+}
+
+/** The injected kinds the host writes around the reader's turns. */
+const INJECTED_KINDS = ['time-context', 'tmux-context', 'plugin:dsh-better-sidebar'] as const
+
+/** The reminder copy a `time-context` loader writes. */
+const REMINDER = 'Time sampled while preparing the response.'
+
+describe("sidechat.events fork point: the reader's question, not a runtime injection (R3)", () => {
+  it('skips a runtime context injection that landed after the real question', async () => {
+    for (const kind of INJECTED_KINDS) {
+      const result = await eventsRoute([
+        userEvent(1, 'PARENT-QUESTION-ONE'),
+        assistantEvent(2, 'PARENT-ANSWER-ONE'),
+        userEvent(3, 'PARENT-QUESTION-TWO'),
+        contextEvent(4, kind, REMINDER),
+        seedMarker(5),
+        ...ownLog(),
+      ])
+      expect.soft(result.fork?.cutSeq, `${kind}: the cut is unchanged`).toBe(5)
+      expect.soft(
+        result.fork?.user,
+        `${kind}: the banner quotes the reader's question, not the injection`,
+      ).toMatchObject({ seq: 3, text: 'PARENT-QUESTION-TWO' })
+      expect.soft(
+        result.fork?.user?.text ?? '',
+        `${kind}: no reminder text reaches the banner`,
+      ).not.toContain('Time sampled')
+    }
+  })
+
+  it('omits the question when only injections precede the cut', async () => {
+    const result = await eventsRoute([
+      contextEvent(1, 'time-context', REMINDER),
+      contextEvent(2, 'tmux-context', 'tmux pane snapshot'),
+      seedMarker(3),
+      ...ownLog(),
+    ])
+    expect(result.fork?.cutSeq, 'the cut itself is still reported').toBe(3)
+    expect(result.fork?.user, 'an injection is not something the reader typed').toBeUndefined()
+  })
+
+  it('keeps preferring a real question that follows an injection', async () => {
+    const result = await eventsRoute([
+      contextEvent(1, 'time-context', REMINDER),
+      userEvent(2, 'PARENT-QUESTION'),
+      assistantEvent(3, 'PARENT-ANSWER'),
+      seedMarker(4),
+      ...ownLog(),
+    ])
+    expect(result.fork?.user, 'the real question still wins').toMatchObject({
+      seq: 2,
+      text: 'PARENT-QUESTION',
+    })
+  })
+
+  it('still treats a user message with no source marker as the reader\'s question', async () => {
+    const result = await eventsRoute([
+      sourcelessUserEvent(1, 'NO-SOURCE-QUESTION'),
+      seedMarker(2),
+      ...ownLog(),
+    ])
+    expect(
+      result.fork?.user,
+      'only a PRESENT non-user source kind marks an injection',
+    ).toMatchObject({ seq: 1, text: 'NO-SOURCE-QUESTION' })
   })
 })

@@ -1537,10 +1537,19 @@ export function sidechatForkPoint(events: readonly SidechatLogEvent[]): Sidechat
   // message of its kind before the cut — and only that one. A message with no
   // text (an image-only prompt, an answer that only reasoned) leaves the part
   // out; falling back to an earlier message would misdate the fork.
+  //
+  // Two things that LOOK like a user message are not one, and both are skipped
+  // by CONTINUING the scan (a runtime injection routinely lands right after the
+  // reader's real question, so stopping here would put a reminder in the
+  // banner): a surface replacement (a compaction checkpoint), and a runtime
+  // context injection, whose `source.kind` is the loader's own (`time-context`,
+  // `tmux-context`, `plugin:…`) — the same predicate the transcript classifies
+  // injections by, so a log whose source is absent still counts as the reader's.
   for (let index = prefix.length - 1; index >= 0; index--) {
     const event = prefix[index]
     if (event === undefined || event.type !== 'user/message') continue
     if (isReplacementMessage(event as SidechatLogEvent & { surfaceOp?: unknown })) continue
+    if (isContextInjectionMessage(event.data as Record<string, unknown>)) continue
     const text = textBlocksOf((event.data as { content?: unknown }).content)
     if (text !== '') fork.user = { seq: event.seq, text: text.slice(0, FORK_USER_CAP) }
     break
