@@ -59,11 +59,13 @@ import {
   Tooltip,
   classifyFileType,
   type DiffBlockLabels,
+  type MarkdownFileMentions,
   type MenuEntry,
   type ReadBlockLabels,
   type TerminalBlockLabels,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { markdownTextProps } from './markdown-labels.tsx'
+import { producedFilePaths, resolveProducedPath } from './sidechat-mentions.ts'
 import { COMPOSITION_END_GRACE_MS, compositionPhase, isGuardedKeydown, isSubmitGesture } from './composer-keymap.ts'
 import { SidechatAssistantRow, type SidechatRowSurfaceBinding } from './SidechatAssistantRow.tsx'
 import { rewriteProseLocalImageUrls } from './markdown-images.ts'
@@ -530,6 +532,10 @@ interface RowSurface {
   /** The absolute spelling of one delivered path (the row's title tooltip;
    *  call-argument paths arrive relative to the session cwd). */
   resolvePath: (path: string) => string
+  /** Inline-code file-mention vocabulary: the paths THIS thread produced (see
+   *  sidechat-mentions.ts). Undefined when the thread has produced nothing, so
+   *  the renderer keeps every token inert code. */
+  mentions: MarkdownFileMentions | undefined
 }
 
 /** One row renderer (React keys ride the source event seq). `surface` is the
@@ -545,12 +551,19 @@ function renderRow(row: SidechatTranscriptRow, labels: RowLabels, surface: RowSu
     case 'user':
       return (
         <div key={key} className={css.sidechatUser}>
-          <MarkdownText {...markdownTextProps(surface.rewrite(row), labels)} />
+          <MarkdownText {...markdownTextProps(surface.rewrite(row), labels, surface.mentions)} />
         </div>
       )
     case 'assistant':
       return (
-        <SidechatAssistantRow key={key} row={row} labels={labels} rewrite={surface.rewrite} surface={genui} />
+        <SidechatAssistantRow
+          key={key}
+          row={row}
+          labels={labels}
+          rewrite={surface.rewrite}
+          fileMentions={surface.mentions}
+          surface={genui}
+        />
       )
     case 'reasoning':
       // Reasoning is PROSE from a model that writes markdown (emphatic lists,
@@ -567,7 +580,7 @@ function renderRow(row: SidechatTranscriptRow, labels: RowLabels, surface: RowSu
           meta={t('sideChatReasoningSummary', { chars: row.text.length })}
           streaming={!row.settled}
         >
-          <MarkdownText {...markdownTextProps(surface.rewrite(row), labels)} />
+          <MarkdownText {...markdownTextProps(surface.rewrite(row), labels, surface.mentions)} />
         </CollapsibleRow>
       )
     case 'injection':
@@ -903,15 +916,6 @@ export function SideChatView(props: {
    *  (the call-argument copy is cwd-relative; the event copy is already
    *  absolute and passes through unchanged). */
   const deliverableTitlePath = useCallback((path: string): string => resolveSidebarPath(scope.cwd, path), [scope.cwd])
-  const rowSurface = useMemo<RowSurface>(
-    () => ({
-      rewrite: rewriteRow,
-      openFile: openDeliveredFile,
-      media: deliverableMediaUrl,
-      resolvePath: deliverableTitlePath,
-    }),
-    [rewriteRow, openDeliveredFile, deliverableMediaUrl, deliverableTitlePath],
-  )
   const transcriptRef = useCallback((element: HTMLDivElement | null) => {
     scrollRef.current = element
     chatSurfaceRef(element)
@@ -1197,6 +1201,53 @@ export function SideChatView(props: {
   /** How many mapped rows the window leaves out (0 = nothing hidden). */
   const hiddenRowCount = rows.length - mountedRowCount
   const visibleRows = useMemo(() => rows.slice(hiddenRowCount), [rows, hiddenRowCount])
+
+  /**
+   * Inline-code file mentions (D12): the vocabulary is the thread's OWN
+   * produced paths — `tool/call` arguments plus `deliverables` rows — so a
+   * token resolves without a single lookup request, and a token outside the set
+   * (or an ambiguous basename) stays inert code.
+   *
+   * Both memos key on the vocabulary's CONTENT, never on the row array: the
+   * array is a fresh value on every poll (the row objects inside it are reused)
+   * and `MarkdownText` memoizes its parse on the resolver's identity, so a
+   * resolver rebuilt per pull would re-parse every row's markdown every 2 s.
+   */
+  const producedPaths = useMemo(() => producedFilePaths(rows), [rows])
+  /** Content key for {@link producedPaths} (a path carries no newline). */
+  const producedMentionKey = producedPaths.join('\n')
+  const fileMentions = useMemo<MarkdownFileMentions | undefined>(() => {
+    if (producedPaths.length === 0) return undefined
+    return {
+      resolve: (token: string) => {
+        const path = resolveProducedPath(producedPaths, token)
+        if (path === undefined) return undefined
+        // The RESOLVED spelling is what the tooltip and the accessible name
+        // carry: the reader is told which FILE opens, not which token the
+        // model happened to write.
+        const title = deliverableTitlePath(path)
+        return {
+          open: () => { openDeliveredFile(path) },
+          label: t('sideChatMentionOpen', { path: title }),
+          title,
+        }
+      },
+    }
+  },
+    // `producedMentionKey` IS `producedPaths`' content; see above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [producedMentionKey, deliverableTitlePath, openDeliveredFile])
+
+  const rowSurface = useMemo<RowSurface>(
+    () => ({
+      rewrite: rewriteRow,
+      openFile: openDeliveredFile,
+      media: deliverableMediaUrl,
+      resolvePath: deliverableTitlePath,
+      mentions: fileMentions,
+    }),
+    [rewriteRow, openDeliveredFile, deliverableMediaUrl, deliverableTitlePath, fileMentions],
+  )
 
   /** The unclaimed inbox rows that still need a bubble: a pending message the
    *  host already logged durably (the claim raced the read) must not render

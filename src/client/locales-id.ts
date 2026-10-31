@@ -469,6 +469,7 @@ export const id: Record<string, string> = {
   sideChatBlockFailed: 'Gagal',
   sideChatBlockDone: 'Selesai',
   sideChatBlockNoOutput: '(tanpa output)',
+  sideChatMentionOpen: 'Buka {path}',
   sideChatBlockCommandLine: 'Baris perintah {line}',
   codeBlockTitle: 'Blok kode',
   codeBlockWrap: 'Bungkus baris',

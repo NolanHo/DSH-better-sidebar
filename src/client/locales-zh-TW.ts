@@ -486,6 +486,7 @@ export const zhTW: Record<string, string> = {
   sideChatBlockFailed: '失敗',
   sideChatBlockDone: '完成',
   sideChatBlockNoOutput: '（無輸出）',
+  sideChatMentionOpen: '開啟 {path}',
   sideChatBlockCommandLine: '指令第 {line} 行',
   codeBlockTitle: '程式碼區塊',
   codeBlockWrap: '自動換行',

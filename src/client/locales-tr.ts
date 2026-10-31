@@ -471,6 +471,7 @@ export const tr: Record<string, string> = {
   sideChatBlockFailed: 'Başarısız',
   sideChatBlockDone: 'Tamamlandı',
   sideChatBlockNoOutput: '(çıktı yok)',
+  sideChatMentionOpen: '{path} dosyasını aç',
   sideChatBlockCommandLine: 'Komut satırı {line}',
   codeBlockTitle: 'Kod bloğu',
   codeBlockWrap: 'Satırları kaydır',

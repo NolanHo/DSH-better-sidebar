@@ -463,6 +463,7 @@ export const ko: Record<string, string> = {
   sideChatBlockFailed: '실패',
   sideChatBlockDone: '완료',
   sideChatBlockNoOutput: '(출력 없음)',
+  sideChatMentionOpen: '{path} 열기',
   sideChatBlockCommandLine: '명령어 {line}행',
   codeBlockTitle: '코드 블록',
   codeBlockWrap: '줄 바꿈',

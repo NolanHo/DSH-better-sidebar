@@ -471,6 +471,7 @@ export const th: Record<string, string> = {
   sideChatBlockFailed: 'ล้มเหลว',
   sideChatBlockDone: 'เสร็จสิ้น',
   sideChatBlockNoOutput: '(ไม่มีเอาต์พุต)',
+  sideChatMentionOpen: 'เปิด {path}',
   sideChatBlockCommandLine: 'บรรทัดคำสั่ง {line}',
   codeBlockTitle: 'บล็อกโค้ด',
   codeBlockWrap: 'ตัดบรรทัดอัตโนมัติ',

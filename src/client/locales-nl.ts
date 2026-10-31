@@ -469,6 +469,7 @@ export const nl: Record<string, string> = {
   sideChatBlockFailed: 'Mislukt',
   sideChatBlockDone: 'Voltooid',
   sideChatBlockNoOutput: '(geen uitvoer)',
+  sideChatMentionOpen: '{path} openen',
   sideChatBlockCommandLine: 'Opdrachtregel {line}',
   codeBlockTitle: 'Codeblok',
   codeBlockWrap: 'Regels afbreken',

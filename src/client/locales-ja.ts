@@ -471,6 +471,7 @@ export const ja: Record<string, string> = {
   sideChatBlockFailed: '失敗',
   sideChatBlockDone: '完了',
   sideChatBlockNoOutput: '（出力なし）',
+  sideChatMentionOpen: '{path} を開く',
   sideChatBlockCommandLine: 'コマンド行 {line}',
   codeBlockTitle: 'コードブロック',
   codeBlockWrap: '折り返しを有効にする',

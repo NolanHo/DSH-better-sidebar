@@ -457,6 +457,7 @@ export const de: Record<string, string> = {
   sideChatBlockFailed: 'Fehlgeschlagen',
   sideChatBlockDone: 'Fertig',
   sideChatBlockNoOutput: '(keine Ausgabe)',
+  sideChatMentionOpen: '{path} öffnen',
   sideChatBlockCommandLine: 'Befehlszeile {line}',
   codeBlockTitle: 'Codeblock',
   codeBlockWrap: 'Zeilen umbrechen',

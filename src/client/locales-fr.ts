@@ -464,6 +464,7 @@ export const fr: Record<string, string> = {
   sideChatBlockFailed: 'Échec',
   sideChatBlockDone: 'Terminé',
   sideChatBlockNoOutput: '(aucune sortie)',
+  sideChatMentionOpen: 'Ouvrir {path}',
   sideChatBlockCommandLine: 'Ligne de commande {line}',
   codeBlockTitle: 'Bloc de code',
   codeBlockWrap: 'Retour à la ligne',

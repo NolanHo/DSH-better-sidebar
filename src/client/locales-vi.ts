@@ -471,6 +471,7 @@ export const vi: Record<string, string> = {
   sideChatBlockFailed: 'Thất bại',
   sideChatBlockDone: 'Hoàn tất',
   sideChatBlockNoOutput: '(không có đầu ra)',
+  sideChatMentionOpen: 'Mở {path}',
   sideChatBlockCommandLine: 'Dòng lệnh {line}',
   codeBlockTitle: 'Khối mã',
   codeBlockWrap: 'Ngắt dòng',

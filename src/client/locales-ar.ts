@@ -472,6 +472,7 @@ export const ar: Record<string, string> = {
   sideChatBlockFailed: 'فشل',
   sideChatBlockDone: 'اكتمل',
   sideChatBlockNoOutput: '(لا يوجد إخراج)',
+  sideChatMentionOpen: 'فتح {path}',
   sideChatBlockCommandLine: 'سطر الأمر {line}',
   codeBlockTitle: 'كتلة التعليمات البرمجية',
   codeBlockWrap: 'التفاف الأسطر',

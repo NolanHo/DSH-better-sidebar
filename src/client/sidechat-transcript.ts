@@ -220,8 +220,10 @@ function resultTextOf(data: Record<string, unknown>): string {
   return parts.join('\n')
 }
 
-/** Parse the tool's raw arguments JSON to an object, or undefined. */
-function parseArgsObject(args: string | undefined): Record<string, unknown> | undefined {
+/** Parse the tool's raw arguments JSON to an object, or undefined (malformed
+ *  JSON, a non-object, or an absent argument string). Shared with the file-
+ *  mention vocabulary, which reads the same arguments. */
+export function parseArgsObject(args: string | undefined): Record<string, unknown> | undefined {
   if (args === undefined) return undefined
   try {
     const parsed = JSON.parse(args) as unknown
