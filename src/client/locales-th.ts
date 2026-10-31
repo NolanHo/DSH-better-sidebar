@@ -442,6 +442,7 @@ export const th: Record<string, string> = {
   sideChatRunError: 'ทำงานล้มเหลว: {message}',
   sideChatTerminalAborted: 'รอบนี้ถูกหยุดแล้ว',
   sideChatTerminalMaxTokens: 'ถึงขีดจำกัดเอาต์พุต — คำตอบถูกตัด',
+  sideChatTruncatedNotice: 'ประวัติก่อนหน้าไม่ได้ถูกโหลดในมุมมองนี้',
   sideChatModel: 'โมเดล',
   sideChatModelInherit: 'สืบทอดบทสนทนาหลัก (ไม่มีแค็ตตาล็อกโมเดล)',
   sideChatReasoning: 'ระดับการใช้เหตุผล',

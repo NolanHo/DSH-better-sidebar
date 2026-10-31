@@ -160,6 +160,38 @@
   overflow-wrap: anywhere;
 }
 
+/* The route cut the head of a very long log: the transcript opens mid-history
+   and says so, once, above the first row. Quiet by design — it explains the gap
+   rather than warning about it. */
+.sidechatTruncatedNotice {
+  flex: none;
+  align-self: center;
+  padding: 2px 10px;
+  border: 1px dashed var(--dsw-alias-border-l2, var(--dsw-alias-border-l1));
+  border-radius: 8px;
+  font-size: var(--dsh-content-font-size-secondary, 13px);
+  line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
+  font-family: var(--dsw-font-family);
+  color: var(--dsw-alias-label-tertiary);
+  text-align: center;
+  user-select: none;
+}
+
+/* The turn ended without a normal completion (stopped, or cut by the output
+   limit). It is a STATEMENT, not a failure: a quiet centred line in the
+   transcript's own secondary size, so it reads as an ending rather than an
+   alarm. */
+.sidechatTerminal {
+  align-self: center;
+  padding: 0 2px;
+  font-size: var(--dsh-content-font-size-secondary, 13px);
+  line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
+  font-family: var(--dsw-font-family);
+  color: var(--dsw-alias-label-tertiary);
+  text-align: center;
+  user-select: none;
+}
+
 /* ── transcript ─────────────────────────────────────────────────────── */
 .sidechatScroll {
   flex: 1;

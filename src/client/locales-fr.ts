@@ -435,6 +435,7 @@ export const fr: Record<string, string> = {
   sideChatRunError: 'Échec de l’exécution : {message}',
   sideChatTerminalAborted: 'Ce tour a été arrêté',
   sideChatTerminalMaxTokens: 'Limite de sortie atteinte — la réponse est tronquée',
+  sideChatTruncatedNotice: 'L’historique antérieur n’est pas chargé dans cette vue',
   sideChatModel: 'Modèle',
   sideChatModelInherit: 'Hériter de la conversation principale (aucun catalogue de modèles disponible)',
   sideChatReasoning: 'Effort de raisonnement',

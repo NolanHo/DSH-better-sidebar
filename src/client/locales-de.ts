@@ -428,6 +428,7 @@ export const de: Record<string, string> = {
   sideChatRunError: 'Ausführung fehlgeschlagen: {message}',
   sideChatTerminalAborted: 'Dieser Durchlauf wurde gestoppt',
   sideChatTerminalMaxTokens: 'Ausgabelimit erreicht — die Antwort ist abgeschnitten',
+  sideChatTruncatedNotice: 'Frühere Verläufe sind in dieser Ansicht nicht geladen',
   sideChatModel: 'Modell',
   sideChatModelInherit: 'Hauptunterhaltung übernehmen (kein Modellkatalog verfügbar)',
   sideChatReasoning: 'Denkaufwand',

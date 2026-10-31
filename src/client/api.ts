@@ -631,7 +631,14 @@ export const api = {
    *  pending bubbles, deduped by id against the durable `user/message` rows
    *  the claim later writes. */
   sidechatEvents: (childId: string, afterSeq?: number, signal?: AbortSignal) =>
-    call<{ events: SidechatLogEvent[]; live: SidechatLiveEvent[]; pending: SidechatPendingInput[] }>('sidechat.events', {
+    call<{
+      events: SidechatLogEvent[]
+      live: SidechatLiveEvent[]
+      pending: SidechatPendingInput[]
+      /** The route cut the head of the log to its event cap: `events` is a TAIL
+       *  slice, so the transcript must say history is missing above it. */
+      truncated?: boolean
+    }>('sidechat.events', {
       childId,
       ...(afterSeq !== undefined ? { afterSeq } : {}),
     }, signal),

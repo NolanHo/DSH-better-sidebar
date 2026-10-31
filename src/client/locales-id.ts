@@ -440,6 +440,7 @@ export const id: Record<string, string> = {
   sideChatRunError: 'Eksekusi gagal: {message}',
   sideChatTerminalAborted: 'Giliran ini dihentikan',
   sideChatTerminalMaxTokens: 'Batas keluaran tercapai — jawaban terpotong',
+  sideChatTruncatedNotice: 'Riwayat sebelumnya tidak dimuat di tampilan ini',
   sideChatModel: 'Model',
   sideChatModelInherit: 'Warisi percakapan utama (katalog model tidak tersedia)',
   sideChatReasoning: 'Tingkat penalaran',

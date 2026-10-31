@@ -875,8 +875,14 @@ export function buildSidechatApi(ctx: Context, live?: AssistantLiveBuffer): Side
       const fresh = rawAfter === undefined ? own : own.filter(event => event.seq > rawAfter)
       const tailSeq = own.at(-1)?.seq ?? -1
       const agent = liveThreadAgent(ctx, childId)
+      // The cap keeps the NEWEST events; when it fires the response is a TAIL
+      // slice of the thread's own log, and the client cannot otherwise tell
+      // that from "this is where the thread begins". The flag is additive: an
+      // older client ignores it and parses `events`/`live`/`pending` as before.
+      const capped = fresh.length > EVENTS_CAP
       return {
-        events: fresh.length > EVENTS_CAP ? fresh.slice(fresh.length - EVENTS_CAP) : fresh,
+        events: capped ? fresh.slice(fresh.length - EVENTS_CAP) : fresh,
+        truncated: capped,
         // The live rows ride every poll: they are process-local, so there is
         // no durable seq to page them by. An idle thread has none.
         live: liveEventsOf(live?.chunksFor(childId) ?? [], tailSeq),

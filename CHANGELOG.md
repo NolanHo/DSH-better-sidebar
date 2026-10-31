@@ -4,6 +4,9 @@
 
 ### 未发布
 
+- ✂️ **超长线程被截断时，转录会说明「上面还有更早的历史」**：`sidechat.events` 路由把响应截到最新 8000 条事件时不留任何标记，客户端于是把「截断后的尾巴」当成线程开头——读者看到的第一条就是某个问题的答案，却没有任何解释。现在路由回传一个**增量**布尔 `truncated`（`true` ⇔ `events` 是 own log 的尾部切片；`events`/`live`/`pending` 形状不变，旧客户端忽略它照常解析），客户端在滚动区内、首个挂载行之前渲染一条 `sideChatTruncatedNotice` 提示；它不占行数、不带行钩子，短线程与显式 `false` 都完全不显示。文案进全部 21 份词典。
+  - 🧪 测试：`tests/sidechat-truncation-route.spec.ts`（cap 边界、返回最新的尾巴、delta 路径不报截断、响应保持增量）与 `tests/sidechat-truncation-notice.spec.tsx`（提示在滚动区顶部、取词典文案、不是行、整线程/`false` 时不存在）。
+
 - 🛑 **被停下的轮次不再「悄悄结束」，撞到输出上限也有交代**：`turn/end` 此前只认 `reason.kind === 'error'`，其它结束原因全部丢弃——于是按下停止后转录只是不再增长（分不清「答完了」还是「被杀掉了」），而 `max-tokens` 截断看起来和正常结束一模一样。现在 `aborted` / `interrupted` 会留下一条「本轮已被停止」，`max-tokens` 留下「输出已达上限，回答被截断」（两句不同，因为读者接下来要做的事不同），同一轮内 attempt 的终止原因与随后的 `turn/end` 去重为一条；error 路径与正常完成的行为不变。两句话进全部 21 份词典。
   - 🧪 测试：`tests/sidechat-terminal-rows.spec.tsx`（两种停止原因恰好一条 terminal 行、max-tokens 单独一句、attempt+turn/end 去重、error/completed 不变、视图里确实显示对应文案）。
 

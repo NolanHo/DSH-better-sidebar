@@ -273,6 +273,9 @@ interface ThreadCache {
   live: SidechatLiveEvent[]
   /** The thread's unclaimed inbox as of the last pull (replaced, never merged). */
   pending: SidechatPendingInput[]
+  /** The FIRST pull of this thread was answered from a capped (tail-sliced)
+   *  log: the transcript opens mid-history and has to say so. */
+  truncated: boolean
 }
 
 /** The catalog row of one route: the model picker reads its reasoning efforts
@@ -785,7 +788,7 @@ export function SideChatView(props: {
    *  retire the echo. */
   const [echo, setEcho] = useState<{ text: string; seq: number } | null>(null)
 
-  const cacheRef = useRef<ThreadCache>({ entries: [], live: [], pending: [] })
+  const cacheRef = useRef<ThreadCache>({ entries: [], live: [], pending: [], truncated: false })
   // The previous poll's rows (see the mapping's reuse pass below).
   const prevRowsRef = useRef<SidechatTranscriptRow[]>([])
   const controllerRef = useRef<AbortController | null>(null)
@@ -999,7 +1002,7 @@ export function SideChatView(props: {
     controllerRef.current = controller
     try {
       const afterSeq = cache.entries.at(-1)?.event.seq
-      const { events, live, pending } = await api.sidechatEvents(childId, afterSeq, controller.signal)
+      const { events, live, pending, truncated } = await api.sidechatEvents(childId, afterSeq, controller.signal)
       if (controller.signal.aborted || cacheRef.current !== cache) return
       // The live set is the CURRENT attempt, so it replaces whatever the
       // previous pull held; a settled step drops out of the host buffer and
@@ -1007,6 +1010,10 @@ export function SideChatView(props: {
       // inbox is a snapshot too (replaced, never merged).
       cache.live = live ?? []
       cache.pending = pending ?? []
+      // Only the FIRST pull of a binding answers from the whole log, so only it
+      // can report a capped head; a poll must not clear a flag the first pull
+      // established.
+      if (afterSeq === undefined) cache.truncated = truncated === true
       if (events.length > 0) {
         // Wire events arrive as parsed JSON; the mirror narrows data to the
         // record the mapping reads.
@@ -1031,7 +1038,7 @@ export function SideChatView(props: {
   // Reset the transcript cache whenever the binding changes, then focus
   // the composer — it owns the first message of a fresh thread.
   useEffect(() => {
-    cacheRef.current = { threadId, entries: [], live: [], pending: [] }
+    cacheRef.current = { threadId, entries: [], live: [], pending: [], truncated: false }
     prevRowsRef.current = []
     controllerRef.current?.abort()
     if (invalidateRef.current !== undefined) {
@@ -1640,6 +1647,15 @@ export function SideChatView(props: {
           data-genui-surface="dsh-better-sidebar/sidechat"
           onScroll={handleTranscriptScroll}
         >
+        {/* The route caps a very long log at its newest events, so this
+            transcript may OPEN mid-history: say so above the first row instead
+            of letting the first answer read like the thread's beginning. It is
+            chrome, not conversation — no row hook, no row count. */}
+        {cacheRef.current.truncated && (
+          <div className={css.sidechatTruncatedNotice} data-sidechat-truncated-notice="">
+            {t('sideChatTruncatedNotice')}
+          </div>
+        )}
         {/* The hidden head of the thread: the spacer holds the scroll space the
             unmounted rows used to occupy (their DECLARED height — jsdom has no
             layout, and a revealed row gives back exactly the height it frees),
