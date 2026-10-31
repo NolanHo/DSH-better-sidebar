@@ -185,19 +185,52 @@ function flatTruncate(text: string): string {
 }
 
 /**
- * One-line summary of a tool call's raw arguments JSON for the collapsed
- * row: the first identifying string field when the JSON parses, else the
- * flattened raw text; empty when there is nothing worth showing.
+ * The short summary of one argument object that names no identifying key: the
+ * FIRST string field, or the first array field's primitive entries joined —
+ * whichever comes first in the object's own order. Undefined when the object
+ * carries neither (all numbers/booleans/nested objects).
+ */
+function firstFieldSummary(parsed: Record<string, unknown>): string | undefined {
+  for (const value of Object.values(parsed)) {
+    if (typeof value === 'string' && value.trim() !== '') return flatTruncate(value)
+    if (!Array.isArray(value)) continue
+    const parts = value
+      .filter((item): item is string | number | boolean =>
+        typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean')
+      .map(item => String(item))
+      .filter(item => item.trim() !== '')
+    if (parts.length > 0) return flatTruncate(parts.join(', '))
+  }
+  return undefined
+}
+
+/**
+ * One-line summary of a tool call's raw arguments JSON for the collapsed row:
+ * the first identifying string field when the JSON parses, else (an object with
+ * none of those keys) the first string/array field, else nothing at all.
+ *
+ * The raw JSON is NEVER the answer for a parsed object — a collapsed row that
+ * reads `{"custom":"v"}` tells the reader nothing they can scan. Raw text still
+ * serves the one case where it is all there is: arguments that are not an
+ * object at all (unparsable, or a bare array/literal), and an object that HAS an
+ * identifying key but left it blank (the key is the tool's own vocabulary, so
+ * the arguments themselves are the honest summary). Empty when there is nothing
+ * worth showing.
  */
 export function toolArgsSummary(args: string | undefined): string {
   if (args === undefined) return ''
   try {
     const parsed = JSON.parse(args) as Record<string, unknown> | null
     if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      let identifying = false
       for (const key of ARGS_SUMMARY_KEYS) {
+        if (!(key in parsed)) continue
+        identifying = true
         const value = parsed[key]
         if (typeof value === 'string' && value.trim() !== '') return flatTruncate(value)
       }
+      if (identifying) return flatTruncate(args)
+      return firstFieldSummary(parsed) ?? ''
     }
   } catch {
     // Raw text fallthrough.

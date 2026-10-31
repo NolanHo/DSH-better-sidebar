@@ -647,11 +647,17 @@ describe('toolArgsSummary', () => {
     expect(toolArgsSummary('{"pattern":"foo","path":"/repo"}')).toBe('/repo')
   })
 
-  it('flattens and truncates raw text when no known key parses', () => {
-    expect(toolArgsSummary('{"custom":"v"}')).toBe('{"custom":"v"}')
+  it('falls back to the first field for an object without an identifying key, and to raw text for a non-object', () => {
+    expect(toolArgsSummary('{"custom":"v"}')).toBe('v')
     expect(toolArgsSummary('not json at all')).toBe('not json at all')
     expect(toolArgsSummary(`{"command":"${'x'.repeat(200)}"`)).toHaveLength(80)
     expect(toolArgsSummary(`{"command":"${'x'.repeat(200)}"`)).toMatch(/…$/)
+  })
+
+  it('never falls back to raw JSON for an object with nothing to name', () => {
+    const summary = toolArgsSummary('{"retries":3,"ok":true,"nested":{"a":1}}')
+    expect(summary).not.toContain('{')
+    expect(summary).not.toContain('"')
   })
 
   it('reads empty for missing or blank input', () => {
