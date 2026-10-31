@@ -4,6 +4,9 @@
 
 ### 未发布
 
+- 🧭 **压缩与重试现在有交代，压缩检查点也不再冒充用户消息或「已注入上下文」**：压缩的检查点是一条 `surfaceOp: replace` 的 `user/message`，而 user 分支此前没有 replacement 判定，于是它按 `source.kind` 被 `isContextInjectionMessage` 收成「已注入上下文」行——历史被压缩的那一刻，转录却宣称「有上下文被注入」，展开后满屏是被替换掉的旧对话摘要。现在 **replacement 判定前置到注入判定之前**：replacement `user/message` 既不是 user 行也不是注入行。只有 checkpoint（`source.kind === 'compact-checkpoint'`）落地才出**一行** `compaction`（seq 取 checkpoint 自己的 seq，带 summary 与 shadowed 项数 / Token 数；summary 收在 `<details>` 里，行上只有标签与计数）；`compaction/start|summary|end` 单独不出行；summary 不在窗口内也仍有一行、不空白。重试按 `retryId` 折叠成一行：`llm/retry` 更新该行、`llm/retry-started` 只把状态改成 `started` 不再加行，行 seq 保持链上首个事件（读作「已重试 N 次」+ provider 的失败原因）；无 `retryId` 不出行，`mode: 'always'` 不编造上限。4 个新文案进全部 21 份词典。
+  - 🧪 测试：`tests/sidechat-compaction-retry-rows.spec.tsx`（整笔事务恰好一行且落在 checkpoint、无 checkpoint 不出行、summary 缺失仍有一行、摘要只由 compaction 行承载且不成为可见行、计数按词典渲染；重试折叠成一行、`retry-started` 不加行、`always` 无上限、无 `retryId` 不出行、行上显示「已重试 N 次」与失败原因）。
+
 - 🖼 **侧边对话里的图片与文件内容块都能看到了**：转录映射原先只保留 `text` 块，于是读者附上的截图、工具产出的图片、以及交给模型的文档在这里全部消失——转录等于宣称这段对话是纯文本。现在 user / assistant / tool-result 三处来源的 `image` 块都出缩略图，字节**只**走 `ctx.get('remote').session.attachment({ sessionId, attachmentId })`（`sessionId` 取线程自己的 id——侧线程不是客户端保留的会话，宿主 `uiConversation.imageUrl` 那条路对它无效），base64 → `Blob`（type 取该媒体的 mediaType）→ `URL.createObjectURL`，卸载时 revoke；同一个 attachmentId **只请求一次**，多个块共享一个请求与一个对象 URL。`file` 块渲染宿主同款芯片（名称 + 文件大小），**零 RPC**。读取被拒 / 抛错 / 组合里没有 remote 时渲染 `sideChatAttachmentImageFailed` 占位而不是坏图；畸形块（缺 `attachmentId` 或 `name`）整块跳过，不请求也不崩。两个文案进全部 21 份词典。
   - 🧪 测试：`tests/sidechat-attachment-blocks.spec.tsx`（三处来源都出缩略图、同一附件只请求一次且共享一个 URL、绝不经过 `uiConversation`、三种失败都出占位且不产生 `<img>`、文件块零 RPC 且大小走宿主格式化、畸形块跳过、卸载时 revoke 全部对象 URL）。
 

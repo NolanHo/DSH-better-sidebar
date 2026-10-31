@@ -636,6 +636,35 @@ function renderRow(row: SidechatTranscriptRow, labels: RowLabels, surface: RowSu
           {t(row.reason === 'max-tokens' ? 'sideChatTerminalMaxTokens' : 'sideChatTerminalAborted')}
         </div>
       )
+    case 'compaction': {
+      // The row LINE is a label plus the counts it has; the summary body (when
+      // the thread still has it) lives behind the disclosure, because a
+      // compacted summary is a page of prose, not a line.
+      const meta = [
+        row.shadowedItemCount === null ? '' : t('sideChatCompactionItems', { count: row.shadowedItemCount }),
+        row.shadowedTokenCount === null ? '' : t('sideChatCompactionTokens', { tokens: row.shadowedTokenCount }),
+      ].filter(part => part !== '').join(' · ')
+      return (
+        <CollapsibleRow
+          key={key}
+          label={t('sideChatCompactionSummary')}
+          {...(meta === '' ? {} : { meta })}
+        >
+          {row.text === '' ? undefined : <div className={css.sidechatRowProse}>{row.text}</div>}
+        </CollapsibleRow>
+      )
+    }
+    case 'retry':
+      // One quiet line per retry CHAIN: how many attempts, and why the model
+      // call failed. The provider's own failure text is the reason, so it rides
+      // the meta slot rather than a sentence the plugin invents.
+      return (
+        <CollapsibleRow
+          key={key}
+          label={t('sideChatRetryAttempt', { retry: row.retry })}
+          {...(row.failureMessage === undefined ? {} : { meta: row.failureMessage })}
+        />
+      )
     case 'turnSummary': {
       // Quiet turn-tail metrics: token usage + wall duration, main-pane
       // StatsLine formatting. Parts appear only when computable.

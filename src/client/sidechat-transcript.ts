@@ -159,6 +159,31 @@ export type SidechatTranscriptRow =
     attachment: SidechatAttachment
     contentBlockIndex?: number
   }
+  /** One compaction transaction, drawn at its landed CHECKPOINT (host parity:
+   *  no checkpoint, no node). `text` is the summary body the row publishes
+   *  behind its disclosure (`''` when the metering event is outside the
+   *  window); the counts come from that same metering event, so they are null
+   *  whenever it is. */
+  | {
+    kind: 'compaction'
+    seq: number
+    text: string
+    summary: string | null
+    shadowedItemCount: number | null
+    shadowedTokenCount: number | null
+  }
+  /** One model-request retry CHAIN (`retryId`), folded like the host: every
+   *  further attempt updates this row, which keeps the chain's first seq. */
+  | {
+    kind: 'retry'
+    seq: number
+    retry: number
+    maxRetries?: number
+    delayMs?: number
+    provider?: string
+    state: 'scheduled' | 'started'
+    failureMessage?: string
+  }
 
 /**
  * One image content block the transcript must show. The bytes are NOT part of
@@ -180,6 +205,15 @@ export interface SidechatFileAttachment {
   name: string
   /** Byte count for the size chip (absent when the producer recorded none). */
   bytes?: number
+}
+
+/** What a landing checkpoint takes from its `compaction/summary` metering
+ *  event: the summary body it replaced the range with, and that range's shadow
+ *  price. Absent when the metering event is outside the event window. */
+interface CompactionFacts {
+  summary: string | null
+  shadowedItemCount: number | null
+  shadowedTokenCount: number | null
 }
 
 /** An `image` or `file` content block, narrowed to what the transcript renders. */
@@ -393,6 +427,14 @@ function attachmentsEqual(a: readonly SidechatAttachment[] | undefined, b: reado
     const right = (peer as typeof attachment).file
     return left.name === right.name && left.bytes === right.bytes
   })
+}
+
+/** The provider failure message of one `llm/retry` (`{ kind, message? }`), or
+ *  undefined when the producer recorded none — the row then carries no meta. */
+function retryFailureMessage(failure: unknown): string | undefined {
+  if (failure === null || typeof failure !== 'object') return undefined
+  const message = (failure as { message?: unknown }).message
+  return typeof message === 'string' && message !== '' ? message : undefined
 }
 
 /** The `image` / `file` blocks of a tool/result message's content list (under
@@ -770,6 +812,15 @@ export function transcriptRows(entries: readonly SidebarHistoryEntry[], prev?: r
    *  last request's prompt size (earlier steps' input is mostly the same
    *  context re-sent, so summing would double-count). */
   const turnUsage = new Map<number, { inputTokens: number; outputTokens: number }>()
+  /** compactionId → the metering facts of its summary event. The checkpoint
+   *  that shadows the range carries only ids: the summary text and the shadow
+   *  price live in the `compaction/summary` logged immediately before it. */
+  const compactionFacts = new Map<string, CompactionFacts>()
+  /** The most recent metering facts (a checkpoint without a compactionId still
+   *  pairs with the event directly before it — the documented adjacency). */
+  let lastCompaction: CompactionFacts | undefined
+  /** retryId → index of its retry row (a chain folds into one row). */
+  const retryRows = new Map<string, number>()
   for (let index = 0; index < events.length; index++) {
     const event = events[index]
     if (event === undefined) continue
@@ -842,6 +893,29 @@ export function transcriptRows(entries: readonly SidebarHistoryEntry[], prev?: r
         // The durable identity the pending-row dedupe keys on (absent on logs
         // written before the field existed, and on the loose fixtures).
         const messageId = typeof data.id === 'string' && data.id !== '' ? data.id : undefined
+        // A REPLACEMENT message is not a message: the host draws it as the node
+        // that shadowed a surface range. This must come BEFORE the injection
+        // predicate — a checkpoint's `source.kind` is not 'user', so the
+        // injection branch would swallow the whole compacted summary into a
+        // "context injected" row and hide the fact that history was compacted.
+        const surfaceOp = (event as { surfaceOp?: unknown }).surfaceOp
+        if (surfaceOp !== undefined && surfaceOp !== 'append') {
+          const source = data.source as { kind?: unknown; compactionId?: unknown } | undefined
+          if (source?.kind === 'compact-checkpoint') {
+            const id = typeof source.compactionId === 'string' ? source.compactionId : undefined
+            const facts = (id === undefined ? undefined : compactionFacts.get(id)) ?? lastCompaction
+            const summary = facts?.summary ?? null
+            rows.push({
+              kind: 'compaction',
+              seq: event.seq,
+              text: summary ?? '',
+              summary,
+              shadowedItemCount: facts?.shadowedItemCount ?? null,
+              shadowedTokenCount: facts?.shadowedTokenCount ?? null,
+            })
+          }
+          break
+        }
         // Context injections (the boundary prompt + snapshot, plugin-sourced
         // context) collapse into an injection row; genuine user messages —
         // including the FIRST one, which the host now delivers as its own
@@ -877,6 +951,61 @@ export function transcriptRows(entries: readonly SidebarHistoryEntry[], prev?: r
           ...(messageId !== undefined ? { messageId } : {}),
           ...(attachments.length > 0 ? { attachments } : {}),
         })
+        break
+      }
+      case 'compaction/summary': {
+        // The metering event: it prices the replacement logged right after it.
+        const id = typeof data.compactionId === 'string' ? data.compactionId : undefined
+        const summary = joinedText(Array.isArray(data.summary) ? data.summary : [])
+        const shadowed = data.shadowedSeqs
+        const tokens = data.shadowedTokenCount
+        const facts: CompactionFacts = {
+          summary: summary === '' ? null : summary,
+          shadowedItemCount: Array.isArray(shadowed) ? shadowed.length : null,
+          shadowedTokenCount: typeof tokens === 'number' && Number.isFinite(tokens) ? tokens : null,
+        }
+        if (id !== undefined) compactionFacts.set(id, facts)
+        lastCompaction = facts
+        break
+      }
+      case 'llm/retry': {
+        // One row per retryId (the producer's chain identity), so a chain of
+        // attempts reads as "retried N times" instead of N silent gaps.
+        const retryId = data.retryId
+        if (typeof retryId !== 'string' || retryId === '') break
+        const retry = data.retry
+        if (typeof retry !== 'number' || !Number.isInteger(retry) || retry < 1) break
+        const maxRetries = data.maxRetries
+        const delayMs = data.delayMs
+        const provider = data.provider
+        const failureMessage = retryFailureMessage(data.failure)
+        const index = retryRows.get(retryId)
+        const existing = index === undefined ? undefined : rows[index]
+        const update = {
+          retry,
+          state: 'scheduled' as const,
+          ...(typeof maxRetries === 'number' && Number.isInteger(maxRetries) ? { maxRetries } : {}),
+          ...(typeof delayMs === 'number' && Number.isFinite(delayMs) ? { delayMs } : {}),
+          ...(typeof provider === 'string' && provider !== '' ? { provider } : {}),
+          ...(failureMessage === undefined ? {} : { failureMessage }),
+        }
+        if (existing !== undefined && existing.kind === 'retry') {
+          // A further attempt REPLACES the row's facts but keeps the chain's
+          // first seq (the reader sees one row where the chain began).
+          rows[index as number] = { ...existing, ...update }
+          break
+        }
+        retryRows.set(retryId, rows.length)
+        rows.push({ kind: 'retry', seq: event.seq, ...update })
+        break
+      }
+      case 'llm/retry-started': {
+        // The wait ended: the SAME row flips to `started`, no second row.
+        const retryId = data.retryId
+        if (typeof retryId !== 'string' || retryId === '') break
+        const index = retryRows.get(retryId)
+        const row = index === undefined ? undefined : rows[index]
+        if (row !== undefined && row.kind === 'retry') rows[index as number] = { ...row, state: 'started' }
         break
       }
       case 'assistant/live-chunk': {
@@ -1129,6 +1258,18 @@ function rowsEqual(a: SidechatTranscriptRow, b: SidechatTranscriptRow): boolean 
     case 'terminal': {
       const other = b as typeof a
       return a.reason === other.reason
+    }
+    case 'compaction': {
+      const other = b as typeof a
+      return a.text === other.text && a.summary === other.summary
+        && a.shadowedItemCount === other.shadowedItemCount
+        && a.shadowedTokenCount === other.shadowedTokenCount
+    }
+    case 'retry': {
+      const other = b as typeof a
+      return a.retry === other.retry && a.state === other.state
+        && a.maxRetries === other.maxRetries && a.delayMs === other.delayMs
+        && a.provider === other.provider && a.failureMessage === other.failureMessage
     }
     case 'attachment': {
       const other = b as typeof a
