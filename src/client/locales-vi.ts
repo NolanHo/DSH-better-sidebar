@@ -447,6 +447,7 @@ export const vi: Record<string, string> = {
   sideChatComposerPlaceholder: 'Hỏi tiếp…',
   sideChatThinking: 'Đang đào sâu…',
   sideChatThink: 'Suy nghĩ',
+  sideChatReasoningSummary: '{chars} ký tự suy nghĩ',
   sideChatInjection: 'Đã tiêm ngữ cảnh',
   sideChatSend: 'Gửi',
   sideChatCancelTitle: 'Hủy vòng hiện tại (giữ hàng đợi)',

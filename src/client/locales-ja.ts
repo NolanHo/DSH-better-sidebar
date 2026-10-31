@@ -447,6 +447,7 @@ export const ja: Record<string, string> = {
   sideChatComposerPlaceholder: 'フォローアップを質問…',
   sideChatThinking: '深掘り中…',
   sideChatThink: '思考プロセス',
+  sideChatReasoningSummary: '思考 {chars} 文字',
   sideChatInjection: 'コンテキスト注入済み',
   sideChatSend: '送信',
   sideChatCancelTitle: '現在のターンを中止（キューは保持）',

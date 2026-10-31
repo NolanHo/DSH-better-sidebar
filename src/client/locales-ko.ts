@@ -439,6 +439,7 @@ export const ko: Record<string, string> = {
   sideChatComposerPlaceholder: '후속 질문…',
   sideChatThinking: '더 파고드는 중…',
   sideChatThink: '생각 과정',
+  sideChatReasoningSummary: '생각 {chars}자',
   sideChatInjection: '컨텍스트 주입됨',
   sideChatSend: '보내기',
   sideChatCancelTitle: '현재 턴 중단(대기열 유지)',

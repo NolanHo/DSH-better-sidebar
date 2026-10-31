@@ -438,6 +438,7 @@ export const it: Record<string, string> = {
   sideChatComposerPlaceholder: 'Ponga un follow-up…',
   sideChatThinking: 'Approfondimento…',
   sideChatThink: 'Pensiero',
+  sideChatReasoningSummary: '{chars} caratteri di ragionamento',
   sideChatInjection: 'Contesto iniettato',
   sideChatSend: 'Invia',
   sideChatCancelTitle: 'Interrompe il turno in corso (il lavoro in coda è conservato)',

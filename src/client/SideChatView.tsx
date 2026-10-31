@@ -550,13 +550,21 @@ function renderRow(row: SidechatTranscriptRow, labels: RowLabels, surface: RowSu
         <SidechatAssistantRow key={key} row={row} labels={labels} rewrite={surface.rewrite} surface={genui} />
       )
     case 'reasoning':
+      // Reasoning is PROSE from a model that writes markdown (emphatic lists,
+      // inline code, file references). It renders through the host renderer —
+      // the same component (and the same delegate surface) as the assistant
+      // row, so emphasis/lists/code become elements and a local link is
+      // claimed by the host instead of showing its literal syntax. The
+      // collapsed summary reports how much thinking there is; no duration is
+      // available for a reasoning row, so none is invented.
       return (
         <CollapsibleRow
           key={key}
           label={labels.thinkLabel}
+          meta={t('sideChatReasoningSummary', { chars: row.text.length })}
           streaming={!row.settled}
         >
-          <div className={css.sidechatRowProse}>{row.text}</div>
+          <MarkdownText {...markdownTextProps(surface.rewrite(row), labels)} />
         </CollapsibleRow>
       )
     case 'injection':

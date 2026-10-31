@@ -440,6 +440,7 @@ export const fr: Record<string, string> = {
   sideChatComposerPlaceholder: 'Relance…',
   sideChatThinking: 'Approfondissement…',
   sideChatThink: 'Processus de réflexion',
+  sideChatReasoningSummary: '{chars} caractères de réflexion',
   sideChatInjection: 'Contexte injecté',
   sideChatSend: 'Envoyer',
   sideChatCancelTitle: 'Interrompre le tour en cours (la file d’attente est conservée)',

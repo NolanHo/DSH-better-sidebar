@@ -445,6 +445,7 @@ export const ru: Record<string, string> = {
   sideChatComposerPlaceholder: 'Уточняющий вопрос…',
   sideChatThinking: 'Углубляется…',
   sideChatThink: 'Размышления',
+  sideChatReasoningSummary: '{chars} символов размышлений',
   sideChatInjection: 'Контекст внедрён',
   sideChatSend: 'Отправить',
   sideChatCancelTitle: 'Прервать текущий ход (очередь сохраняется)',

@@ -430,6 +430,7 @@ export const pt: Record<string, string> = {
   sideChatComposerPlaceholder: 'Fazer uma pergunta de acompanhamento…',
   sideChatThinking: 'Mergulhando fundo…',
   sideChatThink: 'Pensamento',
+  sideChatReasoningSummary: '{chars} caracteres de raciocínio',
   sideChatInjection: 'Contexto injetado',
   sideChatSend: 'Enviar',
   sideChatCancelTitle: 'Abortar o turno em execução (o trabalho na fila é mantido)',

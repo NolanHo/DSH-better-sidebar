@@ -445,6 +445,7 @@ export const nl: Record<string, string> = {
   sideChatComposerPlaceholder: 'Stel een follow-up…',
   sideChatThinking: 'Diep ingaan…',
   sideChatThink: 'Denken',
+  sideChatReasoningSummary: '{chars} tekens nadenken',
   sideChatInjection: 'Context geïnjecteerd',
   sideChatSend: 'Versturen',
   sideChatCancelTitle: 'De lopende beurt afbreken (wachtrij blijft behouden)',

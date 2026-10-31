@@ -4,6 +4,9 @@
 
 ### 未发布
 
+- 🧠 **侧边对话的「思考」行按 Markdown 渲染，并标出思考字数**：推理正文此前是一段 `white-space: pre-wrap` 的纯文本，模型写的 `**重点**`、`- 条目`、`` `命令` `` 和源码链接都原样糊在读者眼前——这是侧边对话里最后一处与主对话不一致的地方（主对话的 reasoning 是 markdown）。现在思考正文走宿主的 `MarkdownText`，与助手正文同一个渲染组件、同一个 `MarkdownDelegateProvider` 作用域：强调变 `<strong>`、列表变 `<li>`、行内码变 `<code>`，本地 `[文件](<path:line>)` 链接同样被宿主接管、点击经 `betterSidebar.openTab` 打开到对应行。折叠条上同时显示 `sideChatReasoningSummary`（{chars} 字符，取原始正文长度；思考行没有时长数据，因此不编造耗时）。
+  - 🧪 测试：`tests/sidechat-reasoning-markdown.spec.tsx`（元素化渲染 / 链接被 claim 且点击打开到行 / 折叠摘要取词典文案）。
+
 - ⌨️ **快捷键与布局组合键不再误发侧边对话的消息**：keydown 此前只认 Enter + Shift + IME，于是 `Alt+Enter`（macOS 上 Option 是打重音／符号的键）、`AltGraph+Enter`（部分布局的切换手势）、`Ctrl+Meta+Enter` 都会直接提交并清空草稿；`Shift+Ctrl/Meta+Enter` 则既不提交也不消费，凭空多出一个换行；按住 Enter 还会一次接一次地连发。现在对齐宿主 composer 的第一道线：修饰键组合（Alt / AltGraph / Ctrl+Meta / Shift+Ctrl|Meta）既不提交也不换行（事件被消费）。`repeat` 的按住事件**永不提交**，但「消费」按它重述的手势判定：重述提交手势（`enter` 的裸 Enter、`mod-enter` 的 Cmd/Ctrl+Enter）时被消费、不叠换行；重述换行手势（`Shift+Enter`、`mod-enter` 下的裸 Enter）时保留原生换行。**活跃 IME 组合优先级最高**：`isComposing` / `keyCode 229` / 正在组合中时，即使同时带 Alt 或 repeat 也整体交还输入法（既不提交也不消费）。裸 Enter / Cmd+Enter / Shift+Enter 的既有行为不变。
   - 🧪 测试：`tests/sidechat-composer-guards.spec.tsx`（两种模式下五组修饰键、提交手势与换行手势各自的 repeat、229 不消费、真实手势不被吞）与 `tests/sidechat-composition-priority.spec.tsx`（活跃组合压过 Alt/repeat）。
 

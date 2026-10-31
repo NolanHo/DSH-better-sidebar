@@ -445,6 +445,7 @@ export const id: Record<string, string> = {
   sideChatComposerPlaceholder: 'Ajukan tindak lanjut…',
   sideChatThinking: 'Mendalami…',
   sideChatThink: 'Berpikir',
+  sideChatReasoningSummary: '{chars} karakter pemikiran',
   sideChatInjection: 'Konteks disuntik',
   sideChatSend: 'Kirim',
   sideChatCancelTitle: 'Batalkan giliran yang berjalan (pekerjaan antrean dipertahankan)',

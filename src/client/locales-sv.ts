@@ -430,6 +430,7 @@ export const sv: Record<string, string> = {
   sideChatComposerPlaceholder: 'Ställ en följdfråga…',
   sideChatThinking: 'Dyk djupare…',
   sideChatThink: 'Tänker',
+  sideChatReasoningSummary: '{chars} tecken resonemang',
   sideChatInjection: 'Kontext injicerad',
   sideChatSend: 'Skicka',
   sideChatCancelTitle: 'Avbryt den pågående vändan (köat arbete behålls)',

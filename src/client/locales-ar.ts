@@ -448,6 +448,7 @@ export const ar: Record<string, string> = {
   sideChatComposerPlaceholder: 'متابعة…',
   sideChatThinking: 'جارٍ التعمّق…',
   sideChatThink: 'التفكير',
+  sideChatReasoningSummary: '{chars} حرفًا من التفكير',
   sideChatInjection: 'تم حقن السياق',
   sideChatSend: 'إرسال',
   sideChatCancelTitle: 'إلغاء الدور الجاري (يُحتفظ بالعمل في قائمة الانتظار)',

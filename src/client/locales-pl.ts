@@ -449,6 +449,7 @@ export const pl: Record<string, string> = {
   sideChatComposerPlaceholder: 'Pytaj dalej…',
   sideChatThinking: 'Drążenie…',
   sideChatThink: 'Myślenie',
+  sideChatReasoningSummary: '{chars} znaków rozważań',
   sideChatInjection: 'Kontekst wstrzyknięty',
   sideChatSend: 'Wyślij',
   sideChatCancelTitle: 'Przerwij bieżącą turę (kolejka jest zachowana)',

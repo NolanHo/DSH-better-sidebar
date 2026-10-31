@@ -447,6 +447,7 @@ export const tr: Record<string, string> = {
   sideChatComposerPlaceholder: 'Devam sorusu sor…',
   sideChatThinking: 'Derin dalıyor…',
   sideChatThink: 'Düşünme',
+  sideChatReasoningSummary: '{chars} karakter düşünce',
   sideChatInjection: 'Bağlam enjekte edildi',
   sideChatSend: 'Gönder',
   sideChatCancelTitle: 'Geçerli turu durdur (sıradaki iş korunur)',

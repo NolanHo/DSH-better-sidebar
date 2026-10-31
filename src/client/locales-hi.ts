@@ -447,6 +447,7 @@ export const hi: Record<string, string> = {
   sideChatComposerPlaceholder: 'फ़ॉलो-अप पूछें…',
   sideChatThinking: 'गहराई से विचार…',
   sideChatThink: 'विचार',
+  sideChatReasoningSummary: '{chars} अक्षर का विचार',
   sideChatInjection: 'संदर्भ इंजेक्ट किया',
   sideChatSend: 'भेजें',
   sideChatCancelTitle: 'चल रहे टर्न को रोकें (कतारबद्ध कार्य रखा जाता है)',

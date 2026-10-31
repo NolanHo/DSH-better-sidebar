@@ -447,6 +447,7 @@ export const th: Record<string, string> = {
   sideChatComposerPlaceholder: 'ถามติดตาม…',
   sideChatThinking: 'กำลังดำดิ่ง…',
   sideChatThink: 'กำลังคิด',
+  sideChatReasoningSummary: 'ความคิด {chars} ตัวอักษร',
   sideChatInjection: 'แทรกบริบทแล้ว',
   sideChatSend: 'ส่ง',
   sideChatCancelTitle: 'ยกเลิกการทำงานรอบปัจจุบัน (งานในคิวยังคงอยู่)',

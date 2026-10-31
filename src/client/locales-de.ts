@@ -433,6 +433,7 @@ export const de: Record<string, string> = {
   sideChatComposerPlaceholder: 'Nachfrage stellen…',
   sideChatThinking: 'Denkt vertieft…',
   sideChatThink: 'Denkvorgang',
+  sideChatReasoningSummary: '{chars} Zeichen Gedanken',
   sideChatInjection: 'Kontext eingespielt',
   sideChatSend: 'Senden',
   sideChatCancelTitle: 'Laufende Runde abbrechen (wartende Nachrichten bleiben erhalten)',

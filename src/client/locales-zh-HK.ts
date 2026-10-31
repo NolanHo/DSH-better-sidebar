@@ -462,6 +462,7 @@ export const zhHK: Record<string, string> = {
   sideChatComposerPlaceholder: '追問…',
   sideChatThinking: '正在深入…',
   sideChatThink: '思考過程',
+  sideChatReasoningSummary: '思考 {chars} 字',
   sideChatInjection: '已注入上下文',
   sideChatSend: '發送',
   sideChatCancelTitle: '中止目前回合（保留佇列）',
