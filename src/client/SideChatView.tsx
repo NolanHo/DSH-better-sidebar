@@ -568,9 +568,29 @@ function ForkBanner(props: {
   /** The parent's last answer; absent when it could not be summarised. */
   answer: string | undefined
 }): React.ReactNode {
-  const line = (
+  // Two rows: the label (and the parent title) identify the thread's origin,
+  // the question quotes what the reader asked. One row for both squeezes the
+  // question to a few characters in a narrow side panel.
+  const caption = (
     <>
       <span className={css.sidechatForkLabel}>{t('sideChatForkBanner')}</span>
+      {props.parentTitle === undefined
+        ? null
+        : <span className={css.sidechatForkParent}>{props.parentTitle}</span>}
+    </>
+  )
+  const line = (withChevron: boolean): React.ReactNode => (
+    <>
+      <span className={css.sidechatForkHead}>
+        {withChevron
+          ? (
+            <span className={css.sidechatRowChevron}>
+              <IconChevronRightOutlineRegular size={12} />
+            </span>
+          )
+          : null}
+        {caption}
+      </span>
       {props.user === undefined
         ? null
         : (
@@ -578,9 +598,6 @@ function ForkBanner(props: {
             {props.user}
           </span>
         )}
-      {props.parentTitle === undefined
-        ? null
-        : <span className={css.sidechatForkParent}>{props.parentTitle}</span>}
     </>
   )
   if (props.answer === undefined || props.answer === '') {
@@ -589,18 +606,13 @@ function ForkBanner(props: {
         className={clsx(css.sidechatForkPoint, css.sidechatForkPointStatic)}
         data-sidechat-fork-point=""
       >
-        <div className={css.sidechatForkLine}>{line}</div>
+        <div className={css.sidechatForkLine}>{line(false)}</div>
       </div>
     )
   }
   return (
     <details className={css.sidechatForkPoint} data-sidechat-fork-point="">
-      <summary className={css.sidechatForkLine}>
-        <span className={css.sidechatRowChevron}>
-          <IconChevronRightOutlineRegular size={12} />
-        </span>
-        {line}
-      </summary>
+      <summary className={css.sidechatForkLine}>{line(true)}</summary>
       <div className={css.sidechatForkBody}>
         <div className={css.sidechatForkAnswerLabel}>{t('sideChatForkAnswer')}</div>
         <div className={css.sidechatForkAnswer}>{props.answer}</div>

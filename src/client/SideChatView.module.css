@@ -780,13 +780,22 @@
 
 .sidechatForkLine {
   display: flex;
-  flex-wrap: nowrap;
-  align-items: baseline;
-  gap: 6px;
+  flex-direction: column;
+  gap: 1px;
   min-width: 0;
   overflow: hidden;
   list-style: none;
   cursor: pointer;
+}
+
+/* The caption row: disclosure, label, and the parent session's own title. */
+.sidechatForkHead {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .sidechatForkLine::-webkit-details-marker {
@@ -799,7 +808,7 @@
   cursor: default;
 }
 
-.sidechatForkPoint[open] > .sidechatForkLine .sidechatRowChevron {
+.sidechatForkPoint[open] > .sidechatForkLine .sidechatForkHead .sidechatRowChevron {
   transform: rotate(90deg);
 }
 
@@ -821,8 +830,9 @@
 }
 
 .sidechatForkParent {
-  flex: none;
-  max-width: 40%;
+  flex: 0 1 auto;
+  margin-left: auto;
+  max-width: 55%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
