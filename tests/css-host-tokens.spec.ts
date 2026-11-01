@@ -514,26 +514,20 @@ function ownTokens(sheets: readonly string[]): Set<string> {
 /**
  * Names the sheets reference WITHOUT a fallback while the host defines none.
  * These are PRE-EXISTING debts of the same class this guard exists for, kept
- * visible (and counted) instead of silently blessed:
+ * visible (and counted) instead of silently blessed.
  *
- * - `--dsw-alias-danger` — error text/borders and the unread badges. The host's
- *   nearest real token is `--dsw-alias-state-error-primary`. Renaming it is not
- *   free: `tests/sidechat-typography-contract.spec.tsx` pins this literal as the
- *   unchanged D3 paint value, so the rename belongs to a batch that may touch
- *   that snapshot.
- * - `--dsw-alias-bg-l2` — the terminal's surfaces; the host's name is
- *   `--dsw-alias-bg-layer-2`.
- * - `--dsw-font-xs-regular-13` — the markdown body font shorthand; the host's
- *   name is `--dsw-font-xs-13`.
- *
- * The list may only SHRINK: the last test fails when an entry stops being
- * referenced, so a fixed name cannot linger here.
+ * EMPTY, deliberately: the three debts this guard shipped with were retired to
+ * the tokens the host theme actually defines —
+ *   `--dsw-alias-danger`       → `--dsw-alias-state-error-primary`
+ *   `--dsw-alias-bg-l2`        → `--dsw-alias-bg-layer-2`
+ *   `--dsw-font-xs-regular-13` → `--dsw-font-xs-13`
+ * — so every fallback-free reference now resolves to a host (or plugin) token.
+ * The list may only SHRINK: the debt test fails when an entry stops being
+ * referenced, and the three retired names are pinned by the last test so they
+ * cannot come back unnoticed. A future entry here is a regression, not a
+ * budget.
  */
-const KNOWN_UNRESOLVED: Readonly<Record<string, string>> = {
-  '--dsw-alias-danger': '--dsw-alias-state-error-primary',
-  '--dsw-alias-bg-l2': '--dsw-alias-bg-layer-2',
-  '--dsw-font-xs-regular-13': '--dsw-font-xs-13',
-}
+const KNOWN_UNRESOLVED: Readonly<Record<string, string>> = {}
 
 /** One reference that cannot resolve. */
 interface Unresolved {
@@ -602,9 +596,19 @@ describe('host theme tokens (stylesheets)', () => {
   })
 
   it('never reintroduces a name the host does not define', () => {
-    // The concrete regression this guard was written for; the rule above covers
-    // it generically, this pins the name so the reason is not lost.
+    // The concrete regressions this guard was written for; the rule above covers
+    // them generically, these pins keep the reasons from being lost. The three
+    // retired spellings are the upstream tokens replaced by the host's real
+    // ones (see the debt comment above): referencing one makes its declaration
+    // invalid at computed-value time, so it silently paints nothing.
     const names = references.map(entry => entry.reference.name)
-    expect(names).not.toContain('--dsw-alias-hairline')
+    for (const retired of [
+      '--dsw-alias-hairline',
+      '--dsw-alias-danger',
+      '--dsw-alias-bg-l2',
+      '--dsw-font-xs-regular-13',
+    ]) {
+      expect(names, `${retired} is not a token the host theme defines`).not.toContain(retired)
+    }
   })
 })

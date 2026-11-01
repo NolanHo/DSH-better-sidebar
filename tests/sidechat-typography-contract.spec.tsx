@@ -36,6 +36,12 @@
  *    literal may appear anywhere in the sheet, and the `--dsh-content-font-*`
  *    variables may ONLY appear in `font` / `font-size` / `line-height`
  *    declarations — never in a colour, border or spacing value.
+ *    ONE paint value moved on purpose, and it is recorded here rather than
+ *    slipped in: the composer error banner and the failed-attempt row paint
+ *    through the host's REAL state token `--dsw-alias-state-error-primary`.
+ *    The upstream spelling they used (`--dsw-alias-danger`) is not defined by
+ *    the host theme, so every declaration using it was invalid at
+ *    computed-value time — the error copy and border painted NOTHING.
  * 4. `.sidechatRowCode` (and every other monospace rule in the sheet) keeps a
  *    monospace family in the form the host itself uses: the token FIRST and an
  *    explicit fallback stack after it — `font-family: var(--dsw-font-mono,
@@ -138,12 +144,12 @@ const UNCHANGED: Record<string, Record<string, string>> = {
     color: 'var(--dsw-alias-label-secondary)',
   },
   '.sidechatHint': { padding: '4px 12px', color: 'var(--dsw-alias-label-tertiary)' },
-  '.sidechatError': { padding: '4px 12px', color: 'var(--dsw-alias-danger)' },
+  '.sidechatError': { padding: '4px 12px', color: 'var(--dsw-alias-state-error-primary)' },
   '.sidechatErrorRow': {
     padding: '6px 10px',
-    border: '1px solid var(--dsw-alias-danger)',
+    border: '1px solid var(--dsw-alias-state-error-primary)',
     'border-radius': '8px',
-    color: 'var(--dsw-alias-danger)',
+    color: 'var(--dsw-alias-state-error-primary)',
   },
   '.sidechatPendingMeta': { gap: '6px', color: 'var(--dsw-alias-label-tertiary)' },
   '.sidechatUser': {
