@@ -1494,10 +1494,64 @@ export interface SidechatForkPoint {
   assistant?: { seq: number; text: string }
 }
 
-/** Most of the parent's question the fork banner carries (the opening). */
+/** Most of the parent's question the fork banner carries: the banner line is
+ *  one visual line, so the question is a summary. */
 export const FORK_USER_CAP = 400
-/** Most of the parent's answer the fork banner carries. */
-export const FORK_ASSISTANT_CAP = 240
+/** Most of the parent's answer the fork banner carries: the expanded body
+ *  scrolls, so the answer is carried WHOLE up to this length instead of being
+ *  cut into half a sentence. */
+export const FORK_ASSISTANT_CAP = 4_000
+
+/** The characters a part may end on, when a sentence end is the best boundary
+ *  inside the cap (ASCII and full-width). */
+const SENTENCE_ENDS = ['.', '!', '?', '…', '。', '！', '？'] as const
+
+/**
+ * The index a text should be cut at, given the room one part has: the LAST
+ * boundary of the best available kind, never inside a word.
+ * @param window - the text that fits, already leaving room for the mark.
+ * @returns the cut index (exclusive), or undefined when nothing in the window is
+ * a boundary (one unbroken word longer than the cap).
+ */
+function boundaryCut(window: string): number | undefined {
+  // a) a line/paragraph break: the kept part is a whole line.
+  const line = window.lastIndexOf('\n')
+  if (line !== -1) return line
+  // b) a sentence end: keep the punctuation that closed it.
+  let sentence = -1
+  for (const mark of SENTENCE_ENDS) {
+    const at = window.lastIndexOf(mark)
+    if (at > sentence) sentence = at
+  }
+  if (sentence !== -1) return sentence + 1
+  // c) the last whitespace: the cut lands between words.
+  for (let index = window.length - 1; index >= 0; index -= 1) {
+    if (/\s/.test(window[index] as string)) return index
+  }
+  // d) one word longer than the cap: a hard cut is the only option.
+  return undefined
+}
+
+/**
+ * Cut a text to at most `cap` characters WITHOUT splitting a word, marking the
+ * cut with `…` inside the same budget.
+ *
+ * The preference order is the reader's: a paragraph break reads as a deliberate
+ * stop, a sentence end as a finished thought, a word break as the least bad
+ * fallback, and the mark only appears when something was really lost (a text
+ * that fits is carried verbatim).
+ * @param text - the full text.
+ * @param cap - the maximum characters the result may occupy, mark included.
+ * @returns the carried text.
+ */
+export function truncateForkText(text: string, cap: number): string {
+  if (text.length <= cap) return text
+  // The mark counts toward the cap, so only `cap - 1` characters are available.
+  const window = text.slice(0, Math.max(0, cap - 1))
+  const cut = boundaryCut(window)
+  const kept = (cut === undefined ? window : window.slice(0, cut)).replace(/\s+$/, '')
+  return `${kept}…`
+}
 
 /** One content list's text blocks joined (`''` when it carries none). */
 function textBlocksOf(content: unknown): string {
@@ -1551,7 +1605,7 @@ export function sidechatForkPoint(events: readonly SidechatLogEvent[]): Sidechat
     if (isReplacementMessage(event as SidechatLogEvent & { surfaceOp?: unknown })) continue
     if (isContextInjectionMessage(event.data as Record<string, unknown>)) continue
     const text = textBlocksOf((event.data as { content?: unknown }).content)
-    if (text !== '') fork.user = { seq: event.seq, text: text.slice(0, FORK_USER_CAP) }
+    if (text !== '') fork.user = { seq: event.seq, text: truncateForkText(text, FORK_USER_CAP) }
     break
   }
   for (let index = prefix.length - 1; index >= 0; index--) {
@@ -1559,7 +1613,7 @@ export function sidechatForkPoint(events: readonly SidechatLogEvent[]): Sidechat
     if (event === undefined || event.type !== 'assistant/message') continue
     const message = (event.data as { message?: { content?: unknown } }).message
     const text = textBlocksOf(message?.content)
-    if (text !== '') fork.assistant = { seq: event.seq, text: text.slice(0, FORK_ASSISTANT_CAP) }
+    if (text !== '') fork.assistant = { seq: event.seq, text: truncateForkText(text, FORK_ASSISTANT_CAP) }
     break
   }
   return fork

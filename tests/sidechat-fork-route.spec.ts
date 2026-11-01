@@ -26,9 +26,18 @@
  *    never be presented as the question the reader typed. `assistant` is the
  *    last `assistant/message` text before the cut (its `text` blocks only —
  *    reasoning never leaks into the banner).
- * 3. Payload caps: `user.text` is at most 400 characters and `assistant.text`
- *    at most 240, truncating the TAIL and keeping the beginning (the reader
- *    needs the opening of the sentence, not its end).
+ * 3. Payload caps, cut on a BOUNDARY. The parent's answer is carried whole —
+ *    the banner body scrolls — so `assistant.text` is at most 4000 characters.
+ *    `user.text` is the single-line summary and stays at most 400. A text that
+ *    does not fit is cut at the last boundary INSIDE the cap, in this order:
+ *      a) the last line break (a paragraph / line boundary),
+ *      b) else the last sentence-ending punctuation (`. ! ? …` and `。 ！ ？`),
+ *      c) else the last whitespace,
+ *      d) else (one unbroken word longer than the cap) a hard cut at the cap.
+ *    A word is never cut in half. Only a text that really lost something ends
+ *    with a truncation mark (`…`), and the mark counts toward the cap: `text`
+ *    never exceeds the cap, mark included. A text that fits is carried
+ *    verbatim, with no mark at all.
  * 4. Independently optional: a message whose text blocks are empty (an
  *    image-only prompt) contributes nothing, so `user` is absent rather than
  *    `{ text: '' }`. With neither part present the field is still `{ cutSeq }`.
@@ -57,8 +66,9 @@ import type { Context } from '../src/context-types.ts'
 
 /** The most the banner may carry of the parent's last question. */
 const USER_CAP = 400
-/** The most the banner may carry of the parent's last answer. */
-const ASSISTANT_CAP = 240
+/** The most the banner may carry of the parent's last answer: the body scrolls,
+ *  so the answer is carried whole up to this length. */
+const ASSISTANT_CAP = 4_000
 
 /** One `{seq,text}` part of the fork field. */
 interface ForkPart {
@@ -102,6 +112,28 @@ function ctxWithAgents(child: ReturnType<typeof agent>): Context {
   return {
     get: (key: string) => (key === 'agents' ? { get: (id: string) => (id === child.id ? child : undefined) } : undefined),
   } as unknown as Context
+}
+
+/** Whether `text` ends with a truncation mark. */
+function marked(text: string): boolean {
+  return /…$|\.\.\.$/.test(text)
+}
+
+/** `text` without its truncation mark (the part actually carried). */
+function withoutMark(text: string): string {
+  if (text.endsWith('…')) return text.slice(0, -1)
+  if (text.endsWith('...')) return text.slice(0, -3)
+  return text
+}
+
+/**
+ * Whether a cut that keeps `kept` out of `source` lands on a non-word boundary:
+ * either the kept part ends with whitespace, or the next character of the
+ * source is whitespace. A cut inside a word satisfies neither.
+ */
+function cutAtBoundary(source: string, kept: string): boolean {
+  if (!source.startsWith(kept)) return false
+  return /\s$/.test(kept) || /\s/.test(source.charAt(kept.length))
 }
 
 /** One plain `user/message` as the log records it. */
@@ -233,22 +265,89 @@ describe('sidechat.events fork point (R2)', () => {
     expect(result.fork?.assistant?.text).toBe('MIDDLE-ANSWER')
   })
 
-  it('caps the carried text and keeps the beginning of each part', async () => {
-    const longQuestion = `${'Q'.repeat(900)}-TAIL-OF-QUESTION`
-    const longAnswer = `${'A'.repeat(900)}-TAIL-OF-ANSWER`
+  it('cuts the question at a sentence end and marks the cut', async () => {
+    const longQuestion = 'question words here. '.repeat(40)
     const result = await eventsRoute([
       userEvent(1, longQuestion),
+      assistantEvent(2, 'PARENT-ANSWER'),
+      seedMarker(3),
+      ...ownLog(),
+    ])
+    const question = result.fork?.user?.text ?? ''
+    const kept = withoutMark(question)
+    expect(question.length, 'the question is capped').toBeLessThanOrEqual(USER_CAP)
+    expect(marked(question), 'a cut question says so').toBe(true)
+    expect(longQuestion.startsWith(kept), 'nothing is invented').toBe(true)
+    expect(
+      kept.replace(/\\s+$/, '').endsWith('.'),
+      'the question stops at a sentence end instead of mid-word',
+    ).toBe(true)
+  })
+
+  it('cuts the answer at a word boundary and marks the cut', async () => {
+    const longAnswer = 'alpha bravo charlie '.repeat(400)
+    const result = await eventsRoute([
+      userEvent(1, 'PARENT-QUESTION'),
       assistantEvent(2, longAnswer),
       seedMarker(3),
       ...ownLog(),
     ])
-    const user = result.fork?.user?.text ?? ''
-    const assistant = result.fork?.assistant?.text ?? ''
-    expect(user.length, 'the question is capped').toBeLessThanOrEqual(USER_CAP)
-    expect(assistant.length, 'the answer is capped').toBeLessThanOrEqual(ASSISTANT_CAP)
-    expect(user.startsWith('QQQQ'), 'the opening of the question survives').toBe(true)
-    expect(assistant.startsWith('AAAA'), 'the opening of the answer survives').toBe(true)
-    expect(user.endsWith('-TAIL-OF-QUESTION'), 'the tail is what gets dropped').toBe(false)
+    const answer = result.fork?.assistant?.text ?? ''
+    const kept = withoutMark(answer)
+    expect(answer.length, 'the answer is capped').toBeLessThanOrEqual(ASSISTANT_CAP)
+    expect(
+      answer.length,
+      'the answer is carried well past the old 240-character cap',
+    ).toBeGreaterThan(1_000)
+    expect(marked(answer), 'a cut answer says so').toBe(true)
+    expect(longAnswer.startsWith(kept), 'nothing is invented').toBe(true)
+    expect(cutAtBoundary(longAnswer, kept), 'the cut lands between words').toBe(true)
+  })
+
+  it('prefers the last paragraph break over a later word break', async () => {
+    const longAnswer = `${'P'.repeat(1_000)}\n${'word '.repeat(700)}`
+    const result = await eventsRoute([
+      userEvent(1, 'PARENT-QUESTION'),
+      assistantEvent(2, longAnswer),
+      seedMarker(3),
+      ...ownLog(),
+    ])
+    const answer = result.fork?.assistant?.text ?? ''
+    const kept = withoutMark(answer).replace(/\s+$/, '')
+    expect(marked(answer), 'a cut answer says so').toBe(true)
+    expect(kept, 'the first paragraph survives whole').toBe('P'.repeat(1_000))
+    expect(answer, 'the words after the paragraph break are not kept').not.toContain('word')
+  })
+
+  it('prefers the last sentence end over a later word break', async () => {
+    const longAnswer = `${'S'.repeat(3_900)}. ${'word '.repeat(50)}`
+    const result = await eventsRoute([
+      userEvent(1, 'PARENT-QUESTION'),
+      assistantEvent(2, longAnswer),
+      seedMarker(3),
+      ...ownLog(),
+    ])
+    const answer = result.fork?.assistant?.text ?? ''
+    const kept = withoutMark(answer).replace(/\s+$/, '')
+    expect(marked(answer), 'a cut answer says so').toBe(true)
+    expect(kept.endsWith('.'), 'the answer stops at a sentence end').toBe(true)
+    expect(answer, 'not a partial word from further down the line').not.toContain('word')
+  })
+
+  it('carries an answer that fits verbatim, with no truncation mark', async () => {
+    const answer = 'A '.repeat(1_200).trim()
+    const result = await eventsRoute([
+      userEvent(1, 'PARENT-QUESTION'),
+      assistantEvent(2, answer),
+      seedMarker(3),
+      ...ownLog(),
+    ])
+    expect(
+      result.fork?.assistant?.text,
+      `a fitting answer is carried whole (${String(answer.length)} characters in, ` +
+        `${String((result.fork?.assistant?.text ?? '').length)} out)`,
+    ).toBe(answer)
+    expect(marked(result.fork?.assistant?.text ?? ''), 'and nothing is marked').toBe(false)
   })
 
   it('never leaks reasoning into the answer tail', async () => {
