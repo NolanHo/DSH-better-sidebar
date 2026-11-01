@@ -793,6 +793,12 @@
   display: none;
 }
 
+/* A fork summarised without an answer has nothing to open: the same line, as a
+ * plain row (no chevron, no pointer, no disclosure). */
+.sidechatForkPointStatic .sidechatForkLine {
+  cursor: default;
+}
+
 .sidechatForkPoint[open] > .sidechatForkLine .sidechatRowChevron {
   transform: rotate(90deg);
 }

@@ -33,6 +33,18 @@
  * T. TURN FOLD. Every turn that produced process rows (reasoning / tool) gets
  *    ONE Turn-level disclosure, `data-sidechat-turn-fold` on a native
  *    `<details>` whose `<summary>` is the always-visible line:
+ *      T0. THE LINE'S COPY is the host's own turn-process vocabulary — the host
+ *          labels this same control from `message.turnProcess.*`, and the user
+ *          asked for parity with the main pane, not for a plugin caption:
+ *            settled WITH a measured duration →
+ *              `t('sideChatTurnTook', { duration })` ("done, took …"), the
+ *              duration formatted by the transcript's own `formatDurationMs`
+ *              (the same formatter its turn-tail usage line prints, so the two
+ *              lines can never disagree);
+ *            settled WITHOUT a measurable duration → `t('sideChatTurnDone')`;
+ *            still RUNNING → `t('sideChatTurnRunning')`, and that control stays
+ *              open (T5).
+ *          The old `sideChatWorkDetails` caption retires with this contract.
  *      T1. A COMPLETED turn (`turn/end` landed) is folded: the disclosure is
  *          CLOSED, so its process rows are hidden. Folding HIDES, never
  *          deletes: those rows stay in the DOM inside the closed disclosure.
@@ -54,12 +66,14 @@
  *          `compact` and `verbose`) picks what the RUNNING turn's control line
  *          says: those two modes append live process detail — the running
  *          tool's name or command, or the first line of its reasoning — while
- *          `compact` keeps the bare label. This is the one difference a flat
+ *          `compact` keeps just the running label. This is the one difference a flat
  *          transcript still shares with the host's per-mode table, so it is
  *          also what the DEFAULT and legacy-value fallbacks are asserted by.
  *
  * Locale keys this contract needs (every shipped dictionary, not just zh/en):
- *   `sideChatWorkDetails` — the per-turn control's label
+ *   `sideChatTurnTook`    — settled with a measured duration (`{duration}`)
+ *   `sideChatTurnDone`    — settled without one
+ *   `sideChatTurnRunning` — still running
  *
  * The ladder above is the batch's agreed equivalence for a flat transcript: the
  * host differentiates `compact`/`standard`/`detailed` by in-turn step grouping,
@@ -74,9 +88,16 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { installSidechatHarness, type SidechatHarness } from './helpers/sidechat-view-harness.tsx'
 import { t } from '../src/client/locales.ts'
+import { formatDurationMs } from '../src/client/sidechat-transcript.ts'
 
-/** The one locale key this contract names. */
-const WORK_DETAILS_KEY = 'sideChatWorkDetails'
+/** The three copies the Turn control line can show (host `message.turnProcess.*`). */
+const TOOK_KEY = 'sideChatTurnTook'
+const DONE_KEY = 'sideChatTurnDone'
+const RUNNING_KEY = 'sideChatTurnRunning'
+
+/** The duration the fixtures' completed turns measure (`turn/start` →
+ *  `turn/end`: 4 s), formatted by the transcript's own formatter. */
+const SETTLED_DURATION = formatDurationMs(4_000)
 
 /** Translate a key this spec names but the build may not have yet. */
 function copy(key: string, params?: Record<string, string | number>): string {
@@ -333,10 +354,16 @@ async function mountWith(stub: FormStub | undefined, events: unknown[]) {
   return rendered
 }
 
-describe('work-details copy (R1)', () => {
-  it('defines the turn-fold label in the dictionaries', () => {
-    expect(copy(WORK_DETAILS_KEY), `the ${WORK_DETAILS_KEY} key must exist in the locale dictionary`)
-      .not.toBe(WORK_DETAILS_KEY)
+describe('Turn control copy (R1)', () => {
+  it('defines the three turn-line copies in the dictionaries', () => {
+    for (const key of [TOOK_KEY, DONE_KEY, RUNNING_KEY]) {
+      expect(copy(key), `the ${key} key must exist in the locale dictionary`).not.toBe(key)
+    }
+    // The took copy interpolates the measured duration as `{duration}`.
+    expect(copy(TOOK_KEY), 'the took copy carries a {duration} placeholder').toContain('{duration}')
+    expect(copy(TOOK_KEY, { duration: SETTLED_DURATION })).toBe(
+      copy(TOOK_KEY).replace('{duration}', SETTLED_DURATION),
+    )
   })
 })
 
@@ -352,7 +379,9 @@ describe('work details: every folding mode (R1)', () => {
           expect(fold.tagName, 'the control is a native disclosure').toBe('DETAILS')
           expect(isOpen(fold), 'a settled turn starts folded').toBe(false)
           const line = summaryOf(fold)?.textContent ?? ''
-          expect(line, 'the fold line is the localized label').toContain(copy(WORK_DETAILS_KEY))
+          expect(line, 'a settled turn says what it did, with its duration')
+            .toContain(copy(TOOK_KEY, { duration: SETTLED_DURATION }))
+          expect(line, 'and never claims to still be running').not.toContain(copy(RUNNING_KEY))
         }
         // Folding HIDES, it does not delete: the work rows are still there.
         for (const marker of [REASONING_ONE, COMMAND_ONE, REASONING_TWO, COMMAND_TWO]) {
@@ -437,7 +466,10 @@ describe('work details: the running turn line (R1, liveProcessDetail)', () => {
     try {
       const fold = runningFold(rendered.container)
       expect(fold, 'the running turn has a control line too').toBeDefined()
-      expect(lineOf(fold as HTMLElement), 'compact shows the bare label').toContain(copy(WORK_DETAILS_KEY))
+      expect(lineOf(fold as HTMLElement), 'a running turn says it is in progress')
+        .toContain(copy(RUNNING_KEY))
+      expect(lineOf(fold as HTMLElement), 'and is not labelled as finished')
+        .not.toContain(copy(DONE_KEY))
       expect(
         carriesLiveDetail(fold),
         'compact never quotes the running command or reasoning',
@@ -457,6 +489,8 @@ describe('work details: the running turn line (R1, liveProcessDetail)', () => {
           carriesLiveDetail(fold),
           `liveProcessDetail quotes the running tool/command/reasoning in ${mode}`,
         ).toBe(true)
+        expect(lineOf(fold as HTMLElement), 'the line still says the turn is running')
+          .toContain(copy(RUNNING_KEY))
       } finally {
         rendered.unmount()
       }
@@ -527,6 +561,32 @@ describe('work details: the preference is live (R1)', () => {
       } finally {
         rendered.unmount()
       }
+    }
+  })
+})
+
+describe('work details: the settled line without a duration (R1)', () => {
+  it('labels a settled turn with no measurable duration as done', async () => {
+    // No `turn/start`: the mapping can compute no wall time for the turn.
+    const events = [
+      { type: 'session/end-seed', seq: 0, time: 0, data: { inherited: true } },
+      ...completedTurn(1, 1, {
+        question: QUESTION_ONE,
+        reasoning: REASONING_ONE,
+        command: COMMAND_ONE,
+        answer: ANSWER_ONE,
+      }).filter(event => (event as { type: string }).type !== 'turn/start'),
+    ]
+    const rendered = await mountWith(readyForm({ transcriptView: 'compact' }), events)
+    try {
+      const fold = foldOf(rendered.container, REASONING_ONE)
+      expect(fold, 'the settled turn is folded').toBeDefined()
+      const line = lineOf(fold as HTMLElement)
+      expect(line, 'a turn with no measured duration just says done').toContain(copy(DONE_KEY))
+      expect(line, 'and quotes no duration').not.toContain(copy(TOOK_KEY, { duration: SETTLED_DURATION }))
+      expect(line, 'and is not running').not.toContain(copy(RUNNING_KEY))
+    } finally {
+      rendered.unmount()
     }
   })
 })

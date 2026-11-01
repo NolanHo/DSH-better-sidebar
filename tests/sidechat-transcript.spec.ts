@@ -327,7 +327,8 @@ describe('turnSummary rows', () => {
       entry(ev('turn/end', 4, { turn: 1, reason: 'completed' })),
     ]
     const rows = transcriptRows(entries)
-    expect(rows.at(-1)).toEqual({ kind: 'turnSummary', seq: 4, inputTokens: 160, outputTokens: 70, durationMs: 3000 })
+    // `turn` is the work-details annotation the fold line reads its duration by.
+    expect(rows.at(-1)).toEqual({ kind: 'turnSummary', seq: 4, turn: 1, inputTokens: 160, outputTokens: 70, durationMs: 3000 })
   })
 
   it('keeps a duration-only tail without usage and a usage-only tail without a turn/start', () => {
@@ -336,14 +337,14 @@ describe('turnSummary rows', () => {
       entry(ev('turn/start', 2, { turn: 1 })),
       entry(ev('turn/end', 7, { turn: 1, reason: 'cancelled' })),
     ]
-    expect(transcriptRows(cancelled).at(-1)).toEqual({ kind: 'turnSummary', seq: 7, durationMs: 5000 })
+    expect(transcriptRows(cancelled).at(-1)).toEqual({ kind: 'turnSummary', seq: 7, turn: 1, durationMs: 5000 })
 
     const seedCutStart = [
       entry(ev('session/end-seed', 0)),
       entry(ev('assistant/message', 2, { turn: 1, step: 1, message: { content: textBlocks('a') }, usage: { inputTokens: 10, outputTokens: 5 } })),
       entry(ev('turn/end', 3, { turn: 1, reason: 'completed' })),
     ]
-    expect(transcriptRows(seedCutStart).at(-1)).toEqual({ kind: 'turnSummary', seq: 3, inputTokens: 10, outputTokens: 5 })
+    expect(transcriptRows(seedCutStart).at(-1)).toEqual({ kind: 'turnSummary', seq: 3, turn: 1, inputTokens: 10, outputTokens: 5 })
   })
 
   it('skips the tail entirely when nothing is computable', () => {

@@ -525,6 +525,9 @@ function runningProcessLine(
  * WORK rows live in the body. Question and answer rows never enter it.
  */
 function TurnFold(props: {
+  /** The line's copy: the host's own turn-process vocabulary (took / done /
+   *  running), localized by the planner that knows the measured duration. */
+  label: string
   rows: React.ReactNode[]
   liveDetail: string | undefined
   open: boolean
@@ -542,9 +545,66 @@ function TurnFold(props: {
         <span className={css.sidechatRowChevron}>
           <IconChevronRightOutlineRegular size={12} />
         </span>
-        <span className={css.sidechatRowLabel}>{t('sideChatWorkDetails')}</span>
+        <span className={css.sidechatRowLabel}>{props.label}</span>
       </summary>
       <div className={css.sidechatTurnFoldBody}>{props.rows}</div>
+    </details>
+  )
+}
+
+/**
+ * The fork point, as a quiet card above the transcript.
+ *
+ * Expandable ONLY when the parent's answer is actually there: a disclosure that
+ * opens onto nothing is worse than a plain line, so a fork summarised with just
+ * the question (or with neither part) renders the same readable line as a
+ * static div, without the chevron.
+ */
+function ForkBanner(props: {
+  /** The parent's last question, already capped by the route. */
+  user: string | undefined
+  /** The parent session's own title, when the list knows it. */
+  parentTitle: string | undefined
+  /** The parent's last answer; absent when it could not be summarised. */
+  answer: string | undefined
+}): React.ReactNode {
+  const line = (
+    <>
+      <span className={css.sidechatForkLabel}>{t('sideChatForkBanner')}</span>
+      {props.user === undefined
+        ? null
+        : (
+          <span className={css.sidechatForkQuestion} data-sidechat-fork-question="">
+            {props.user}
+          </span>
+        )}
+      {props.parentTitle === undefined
+        ? null
+        : <span className={css.sidechatForkParent}>{props.parentTitle}</span>}
+    </>
+  )
+  if (props.answer === undefined || props.answer === '') {
+    return (
+      <div
+        className={clsx(css.sidechatForkPoint, css.sidechatForkPointStatic)}
+        data-sidechat-fork-point=""
+      >
+        <div className={css.sidechatForkLine}>{line}</div>
+      </div>
+    )
+  }
+  return (
+    <details className={css.sidechatForkPoint} data-sidechat-fork-point="">
+      <summary className={css.sidechatForkLine}>
+        <span className={css.sidechatRowChevron}>
+          <IconChevronRightOutlineRegular size={12} />
+        </span>
+        {line}
+      </summary>
+      <div className={css.sidechatForkBody}>
+        <div className={css.sidechatForkAnswerLabel}>{t('sideChatForkAnswer')}</div>
+        <div className={css.sidechatForkAnswer}>{props.answer}</div>
+      </div>
     </details>
   )
 }
@@ -1792,8 +1852,13 @@ export function SideChatView(props: {
     if (!foldsSettledTurns(workDetails.mode)) return visibleRows.map(mount)
     /** The newest turn whose `turn/end` landed: the one `next-input` keeps open. */
     let newestCompletedTurn: number | undefined
+    /** turn → the wall time its `turn/end` measured (the tail metrics row). */
+    const turnDurations = new Map<number, number>()
     for (const row of rows) {
       if (isWorkRow(row) && row.turnEnded === true) newestCompletedTurn = row.turn
+      if (row.kind === 'turnSummary' && row.turn !== undefined && row.durationMs !== undefined) {
+        turnDurations.set(row.turn, row.durationMs)
+      }
     }
     const nodes: React.ReactNode[] = []
     let index = 0
@@ -1822,6 +1887,16 @@ export function SideChatView(props: {
       const settled = run.some(entry => isWorkRow(entry) && entry.turnEnded === true)
       const open = !settled
         || (workDetails.collapseTiming === 'next-input' && turn === newestCompletedTurn)
+      // The host labels this same control from its turn-process vocabulary: a
+      // settled turn says how long it took (its own measured tail duration, the
+      // one the usage line below already printed), a settled turn without a
+      // measurement says done, and a running one says so.
+      const duration = turnDurations.get(turn)
+      const label = settled
+        ? (duration === undefined
+          ? t('sideChatTurnDone')
+          : t('sideChatTurnTook', { duration: formatDurationMs(duration) }))
+        : t('sideChatTurnRunning')
       const last = run.at(-1)
       const liveDetail = !settled && showsLiveProcessDetail(workDetails.mode) && last !== undefined && isWorkRow(last)
         ? runningProcessLine(last)
@@ -1831,6 +1906,7 @@ export function SideChatView(props: {
         <TurnFold
           key={`fold:${threadId ?? 'unbound'}:${String(turn)}:${first === undefined ? '' : sidechatRowKey(first)}`}
           open={open}
+          label={label}
           liveDetail={liveDetail}
           rows={run.map(mount)}
         />,
@@ -2028,32 +2104,11 @@ export function SideChatView(props: {
             which main-pane question they were asking. Chrome, not
             conversation — no row hook, no row count. */}
         {forkPoint !== undefined && (
-          <details className={css.sidechatForkPoint} data-sidechat-fork-point="">
-            <summary className={css.sidechatForkLine}>
-              <span className={css.sidechatRowChevron}>
-                <IconChevronRightOutlineRegular size={12} />
-              </span>
-              <span className={css.sidechatForkLabel}>{t('sideChatForkBanner')}</span>
-              {forkPoint.user === undefined
-                ? null
-                : (
-                  <span className={css.sidechatForkQuestion} data-sidechat-fork-question="">
-                    {forkPoint.user.text}
-                  </span>
-                )}
-              {parentTitle === undefined
-                ? null
-                : <span className={css.sidechatForkParent}>{parentTitle}</span>}
-            </summary>
-            {forkPoint.assistant === undefined
-              ? null
-              : (
-                <div className={css.sidechatForkBody}>
-                  <div className={css.sidechatForkAnswerLabel}>{t('sideChatForkAnswer')}</div>
-                  <div className={css.sidechatForkAnswer}>{forkPoint.assistant.text}</div>
-                </div>
-              )}
-          </details>
+          <ForkBanner
+            user={forkPoint.user?.text}
+            parentTitle={parentTitle}
+            answer={forkPoint.assistant?.text}
+          />
         )}
         {/* The hidden head of the thread: the spacer holds the scroll space the
             unmounted rows used to occupy (their DECLARED height — jsdom has no

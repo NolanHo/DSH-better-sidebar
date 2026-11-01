@@ -157,7 +157,16 @@ export type SidechatTranscriptRow =
   /** One turn's tail metrics, emitted at `turn/end`: the turn's token usage
    *  (aggregated from `assistant/message.usage`) and wall duration (envelope
    *  time delta from `turn/start`), whichever are computable. */
-  | { kind: 'turnSummary'; seq: number; inputTokens?: number; outputTokens?: number; durationMs?: number }
+  | {
+    kind: 'turnSummary'
+    seq: number
+    /** The turn these metrics belong to (the view's work-details control reads
+     *  its duration from here). */
+    turn?: number
+    inputTokens?: number
+    outputTokens?: number
+    durationMs?: number
+  }
   /** A turn that ended WITHOUT a normal completion, so the transcript says why
    *  it stops there instead of looking deliberately finished: the reader (or
    *  the agent) stopped it (`aborted`), or the output limit cut it
@@ -914,6 +923,7 @@ export function transcriptRows(entries: readonly SidebarHistoryEntry[], prev?: r
         rows.push({
           kind: 'turnSummary',
           seq: event.seq,
+          turn,
           ...(usage !== undefined ? { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens } : {}),
           ...(durationMs !== undefined ? { durationMs } : {}),
         })
@@ -1341,7 +1351,8 @@ function rowsEqual(a: SidechatTranscriptRow, b: SidechatTranscriptRow): boolean 
     }
     case 'turnSummary': {
       const other = b as typeof a
-      return a.inputTokens === other.inputTokens && a.outputTokens === other.outputTokens
+      return a.turn === other.turn
+        && a.inputTokens === other.inputTokens && a.outputTokens === other.outputTokens
         && a.durationMs === other.durationMs
     }
     case 'terminal': {
