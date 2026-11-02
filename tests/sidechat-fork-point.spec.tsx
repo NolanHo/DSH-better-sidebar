@@ -1,42 +1,49 @@
 // @vitest-environment jsdom
 /**
- * R2 (client half) — the transcript says WHERE it forked off the parent
- * conversation, and what was being discussed there. Design basis:
- * `/tmp/bsb-parity/forkpoint-recon.md` §Q3/§Q4 (field shape, the parent title
- * the session list already carries, the top-chrome precedent at
- * `SideChatView.tsx:1884-1890` next to `data-sidechat-truncated-notice`).
+ * R2 (client half) — the transcript shows the pre-fork context the way the user
+ * asked for it: the parent's last exchange rendered as ORDINARY conversation,
+ * opened by one divider line that says where it came from. Design basis: the
+ * field report on the card that shipped first (`/tmp/bsb-parity/forkpoint-recon.md`
+ * §Q3/§Q4 introduced the field; the presentation changed twice after review).
  *
  * Why this spec exists: a side thread opens on the side question, as if the
- * conversation began there. The reader has no way to see which main-pane
- * question they branched from, nor what the main pane had just answered — yet
- * that context is exactly what the side thread was forked to continue. The
- * route now summarises it (`fork`, see tests/sidechat-fork-route.spec.ts); the
- * transcript must show it.
+ * conversation began there — yet it was forked to continue a main-pane exchange.
+ * The first attempt drew a card (a disclosure with a caption and a body); the
+ * reader's verdict was that it should not be a card at all: the inherited
+ * question and answer should look exactly like the messages below them, with
+ * one divider marking the boundary.
  *
  * ============================ CONTRACT ============================
- * 1. PLACEMENT AND SHAPE. When the first pull carries `fork` with something to
- *    show, the transcript renders ONE banner inside the transcript's scroll
- *    container, ABOVE the first mounted transcript row (the same chrome region
- *    as the truncation notice). The banner is a native disclosure —
- *    `<details data-sidechat-fork-point>` with a `<summary>` — and it starts
- *    COLLAPSED.
- * 2. COLLAPSED LINE: the localized label `t('sideChatForkBanner')`, the
- *    parent's last question summary (the route's `fork.user.text`, rendered
- *    verbatim), and the parent session's title when the session list knows the
- *    thread's `parentId` (the host field is `displayTitle`).
- * 3. EXPANDED BODY: the parent's answer tail (`fork.assistant.text`) under the
- *    localized heading `t('sideChatForkAnswer')`, so the reader can see what
- *    was answered just before they branched.
- * 4. NOTHING TO SAY = NO BANNER: without the field, or with a field carrying
+ * 1. PLACEMENT, NO CARD. When the first pull carries `fork` with something to
+ *    show, the transcript renders ONE block inside its scroll container, ABOVE
+ *    the first mounted transcript row. `[data-sidechat-fork-point]` is a plain
+ *    container: it holds NO `<details>` and NO `<summary>` — nothing about the
+ *    fork block is expandable.
+ * 2. DIVIDER FIRST. The block opens with a divider row carrying
+ *    `data-sidechat-fork-divider` and the localized `t('sideChatForkDivider')`
+ *    ("the main session before the fork"). The hairline itself is CSS; the hook
+ *    and the copy are what the DOM pins.
+ * 3. THEN THE INHERITED QUESTION, presented like a user message of THIS thread:
+ *    the same `sidechatUser` presentation block, markdown-rendered, carrying
+ *    `data-sidechat-fork-question`, in FULL (the route no longer caps it — no
+ *    ellipsis, no client-side shortening).
+ * 4. THEN THE INHERITED ANSWER, presented like a normal assistant message: the
+ *    same `sidechatAssistant` presentation block and the same markdown
+ *    renderer (emphasis becomes `<strong>`, a code span becomes `<code>`), in
+ *    FULL and never truncated.
+ * 5. NO ANSWER = no assistant block: with `assistant` absent the block is the
+ *    divider plus the question, and nothing pretends an answer exists.
+ * 6. NOTHING TO SAY = NO BLOCK: without the field, or with a field carrying
  *    neither `user` nor `assistant` (an empty seed), the transcript renders no
- *    banner at all.
- * 5. CHROME, NOT CONVERSATION: the banner carries no
+ *    fork block at all.
+ * 7. CHROME, NOT CONVERSATION: the block carries no
  *    `data-sidechat-transcript-row` and changes neither the number nor the
  *    content of the mounted transcript rows.
  *
  * Locale keys this contract needs (every shipped dictionary, not just zh/en):
- *   `sideChatForkBanner` — the banner's line ("forked from the main session")
- *   `sideChatForkAnswer` — the heading of the expanded answer tail
+ *   `sideChatForkDivider` — the divider line's copy
+ * (`sideChatForkBanner` / `sideChatForkAnswer` belonged to the retired card and
+ * leave with it.)
  * ==================================================================
  *
  * The harness's fetch stub answers `sidechat.events` from `wire`, which owns no
@@ -44,22 +51,23 @@
  * it into the envelope, exactly as the host route does — the same technique the
  * truncation notice spec uses for `truncated`.
  */
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { installSidechatHarness, type SidechatHarness } from './helpers/sidechat-view-harness.tsx'
 import { t } from '../src/client/locales.ts'
 
-/** The banner's line label. */
-const BANNER_KEY = 'sideChatForkBanner'
-/** The expanded answer tail's heading. */
-const ANSWER_KEY = 'sideChatForkAnswer'
+/** The divider line's copy (the one key this contract adds). */
+const DIVIDER_KEY = 'sideChatForkDivider'
 
 /** What the route reports for the parent's last exchange. */
 const PARENT_QUESTION = 'PARENT-QUESTION-TWO'
-const PARENT_ANSWER = 'PARENT-ANSWER-TWO'
-/** The parent session's `displayTitle` in the harness's own session list. */
-const PARENT_TITLE = '主会话'
+/** The answer carries markdown: the block must render it the way a normal
+ *  assistant row does, so emphasis and code spans become elements. */
+const PARENT_ANSWER = 'PARENT-ANSWER with **emphasis** and a `code span`'
+
+/** A question well past the old 400-character cap. */
+const LONG_QUESTION = `${'question words here. '.repeat(60)}LAST-QUESTION-WORDS`
+/** An answer well past the old 4000-character cap, still ending in markdown. */
+const LONG_ANSWER = `${'A long sentence about the work. '.repeat(200)}**the end**`
 
 /** Translate a key this spec names but the build may not have yet. */
 function copy(key: string, params?: Record<string, string | number>): string {
@@ -130,14 +138,37 @@ function mountedRows(container: HTMLElement): Element[] {
   return [...container.querySelectorAll('[data-sidechat-transcript-row]')]
 }
 
-/** The fork banner, or null when the transcript shows none. */
-function bannerOf(container: HTMLElement): HTMLElement | null {
+/** The fork block, or null when the transcript shows none. */
+function blockOf(container: HTMLElement): HTMLElement | null {
   return container.querySelector('[data-sidechat-fork-point]')
+}
+
+/** The innermost element carrying `needle` (document order puts descendants last). */
+function innermost(scope: HTMLElement, needle: string): HTMLElement | undefined {
+  const matches = [...scope.querySelectorAll<HTMLElement>('*')]
+    .filter(element => (element.textContent ?? '').includes(needle))
+  return matches.at(-1)
 }
 
 /** Whether `earlier` precedes `later` in document order. */
 function precedes(earlier: Element, later: Element): boolean {
   return (earlier.compareDocumentPosition(later) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+}
+
+/** The node that presents one part of the fork block, inside `block`. */
+function partOf(block: HTMLElement, marker: string): HTMLElement | undefined {
+  return innermost(block, marker)
+}
+
+/**
+ * Whether `node` is presented with the transcript's own block for `kind`: the
+ * same `sidechatUser` / `sidechatAssistant` styling a real message row uses, so
+ * the two can never drift apart in type size or colour.
+ * @param node - the element carrying the inherited text.
+ * @param kind - which presentation block to require.
+ */
+function presentedAs(node: HTMLElement, kind: 'sidechatUser' | 'sidechatAssistant'): boolean {
+  return node.closest(`[class*="${kind}"]`) !== null
 }
 
 let harness: SidechatHarness
@@ -158,89 +189,144 @@ async function mountTranscript() {
   return rendered
 }
 
-describe('fork point banner (R2)', () => {
-  it('defines the banner copy in the dictionaries', () => {
-    expect(copy(BANNER_KEY), `the ${BANNER_KEY} key must exist in the locale dictionary`).not.toBe(BANNER_KEY)
-    expect(copy(ANSWER_KEY), `the ${ANSWER_KEY} key must exist in the locale dictionary`).not.toBe(ANSWER_KEY)
+describe('fork point block (R2)', () => {
+  it('defines the divider copy in the dictionaries', () => {
+    expect(copy(DIVIDER_KEY), `the ${DIVIDER_KEY} key must exist in the locale dictionary`)
+      .not.toBe(DIVIDER_KEY)
   })
 
-  it('renders a collapsed banner above the transcript with the parent question', async () => {
+  it('renders a plain, non-expandable block above the transcript', async () => {
     reportFork({ cutSeq: 0, user: { seq: 3, text: PARENT_QUESTION }, assistant: { seq: 4, text: PARENT_ANSWER } })
     const rendered = await mountTranscript()
     try {
       const container = rendered.container
-      const banner = bannerOf(container)
-      expect(banner, 'the fork point is shown').not.toBeNull()
-      const details = banner as HTMLElement
-      expect(details.tagName, 'the banner is a native disclosure').toBe('DETAILS')
-      expect(details.hasAttribute('open'), 'it starts collapsed').toBe(false)
-      expect(scrollerOf(container).contains(details), 'it lives in the transcript chrome region').toBe(true)
+      const block = blockOf(container)
+      expect(block, 'the fork point is shown').not.toBeNull()
+      const forkBlock = block as HTMLElement
+      expect(scrollerOf(container).contains(forkBlock), 'it lives in the transcript chrome region').toBe(true)
 
       const rows = mountedRows(container)
       expect(rows.length, 'the transcript itself still renders').toBeGreaterThan(0)
-      expect(precedes(details, rows[0] as Element), 'it sits above the first row').toBe(true)
+      expect(precedes(forkBlock, rows[0] as Element), 'it sits above the first row').toBe(true)
 
-      const line = details.querySelector('summary')?.textContent ?? ''
-      expect(line, 'the line says this is a fork of the main session').toContain(copy(BANNER_KEY))
-      expect(line, 'and quotes the question that was being asked').toContain(PARENT_QUESTION)
-      expect(line, 'and names the parent session when it is known').toContain(PARENT_TITLE)
+      // Not a card: nothing about the fork block opens or closes.
+      expect(forkBlock.querySelectorAll('details'), 'no disclosure').toHaveLength(0)
+      expect(forkBlock.querySelectorAll('summary'), 'no summary line').toHaveLength(0)
       expect(container.textContent ?? '', 'the side thread itself still renders').toContain('SIDE-QUESTION')
     } finally {
       rendered.unmount()
     }
   })
 
-  it('shows the parent answer tail behind the disclosure', async () => {
+  it('opens with the divider, then the inherited question', async () => {
     reportFork({ cutSeq: 0, user: { seq: 3, text: PARENT_QUESTION }, assistant: { seq: 4, text: PARENT_ANSWER } })
     const rendered = await mountTranscript()
     try {
-      const details = bannerOf(rendered.container) as HTMLElement
-      expect(details, 'the fork point is shown').not.toBeNull()
-      const summary = details.querySelector('summary')
-      const body = [...details.querySelectorAll<HTMLElement>('*')]
-        .filter(element => element !== summary && summary?.contains(element) !== true)
-      const bodyText = body.map(element => element.textContent ?? '').join('\n')
-      expect(bodyText, 'the answer tail is in the expanded body').toContain(PARENT_ANSWER)
-      expect(bodyText, 'under a localized heading').toContain(copy(ANSWER_KEY))
+      const block = blockOf(rendered.container) as HTMLElement
+      expect(block, 'the fork point is shown').not.toBeNull()
+
+      const divider = block.querySelector<HTMLElement>('[data-sidechat-fork-divider]')
+      expect(divider, 'the block opens with a divider row').not.toBeNull()
+      expect(divider?.textContent ?? '', 'the divider says what follows').toContain(copy(DIVIDER_KEY))
+
+      const question = block.querySelector<HTMLElement>('[data-sidechat-fork-question]')
+      expect(question, 'the inherited question carries its own hook').not.toBeNull()
+      expect(precedes(divider as HTMLElement, question as HTMLElement), 'the divider comes first').toBe(true)
+      expect(question?.textContent, 'the question is quoted verbatim').toBe(PARENT_QUESTION)
+      expect(
+        presentedAs(question as HTMLElement, 'sidechatUser'),
+        'it is presented like a user message of this thread',
+      ).toBe(true)
     } finally {
       rendered.unmount()
     }
   })
 
-  it('shows the banner without a question when only the answer is known', async () => {
-    reportFork({ cutSeq: 0, assistant: { seq: 4, text: PARENT_ANSWER } })
+  it('renders the inherited answer like a normal assistant message', async () => {
+    reportFork({ cutSeq: 0, user: { seq: 3, text: PARENT_QUESTION }, assistant: { seq: 4, text: PARENT_ANSWER } })
     const rendered = await mountTranscript()
     try {
-      const details = bannerOf(rendered.container) as HTMLElement
-      expect(details, 'an answer-only fork still says where it came from').not.toBeNull()
-      expect(details.textContent ?? '', 'and carries the answer').toContain(PARENT_ANSWER)
-      expect(details.textContent ?? '', 'with no placeholder for the absent question').not.toContain('undefined')
+      const block = blockOf(rendered.container) as HTMLElement
+      const answer = partOf(block, 'PARENT-ANSWER with')
+      expect(answer, 'the inherited answer renders').toBeDefined()
+      expect(
+        presentedAs(answer as HTMLElement, 'sidechatAssistant'),
+        'it uses the same presentation block as a normal assistant message',
+      ).toBe(true)
+      expect(
+        answer?.closest('[class*="sidechatAssistant"]')?.querySelector('strong'),
+        'and goes through the same markdown renderer (emphasis becomes <strong>)',
+      ).not.toBeNull()
+      expect(
+        answer?.closest('[class*="sidechatAssistant"]')?.querySelector('code'),
+        'a code span becomes <code>',
+      ).not.toBeNull()
     } finally {
       rendered.unmount()
     }
   })
 
-  it('renders no banner when the route reports no fork point', async () => {
+  it('carries the inherited question and answer in full, with no truncation mark', async () => {
+    reportFork({
+      cutSeq: 0,
+      user: { seq: 3, text: LONG_QUESTION },
+      assistant: { seq: 4, text: LONG_ANSWER },
+    })
     const rendered = await mountTranscript()
     try {
-      expect(bannerOf(rendered.container), 'an unseeded thread has nothing to show').toBeNull()
+      const block = blockOf(rendered.container) as HTMLElement
+      const question = block.querySelector<HTMLElement>('[data-sidechat-fork-question]')
+      expect(question?.textContent, 'the whole question arrives').toBe(LONG_QUESTION)
+      expect(question?.textContent ?? '', 'and carries no truncation mark').not.toMatch(/…$|\.\.\.$/)
+      const answerBlock = partOf(block, 'A long sentence about the work.')
+        ?.closest<HTMLElement>('[class*="sidechatAssistant"]')
+      expect(answerBlock, 'the whole answer arrives').toBeTruthy()
+      expect(answerBlock?.textContent ?? '', 'the whole answer arrives').toContain('the end')
+      expect(answerBlock?.textContent ?? '', 'and carries no truncation mark').not.toMatch(/…$|\.\.\.$/)
+    } finally {
+      rendered.unmount()
+    }
+  })
+
+  it('renders the divider and the question only when there is no answer', async () => {
+    reportFork({ cutSeq: 0, user: { seq: 3, text: PARENT_QUESTION } })
+    const rendered = await mountTranscript()
+    try {
+      const block = blockOf(rendered.container) as HTMLElement
+      expect(block, 'a fork summarised with just the question still renders').not.toBeNull()
+      expect(block.querySelector('[data-sidechat-fork-divider]'), 'the divider is there').not.toBeNull()
+      expect(block.querySelector('[data-sidechat-fork-question]'), 'and the question').not.toBeNull()
+      expect(
+        block.querySelector('[class*="sidechatAssistant"]'),
+        'but nothing pretends an answer exists',
+      ).toBeNull()
+      expect(block.textContent ?? '', 'no absent field leaks into the copy').not.toContain('undefined')
+    } finally {
+      rendered.unmount()
+    }
+  })
+
+  it('renders no block when the route reports no fork point', async () => {
+    const rendered = await mountTranscript()
+    try {
+      expect(blockOf(rendered.container), 'an unseeded thread has nothing to show').toBeNull()
       expect(rendered.container.textContent ?? '', 'and the transcript is whole').toContain('SIDE-ANSWER')
     } finally {
       rendered.unmount()
     }
   })
 
-  it('renders no banner when the fork point carries nothing to show', async () => {
+  it('renders no block when the fork point carries nothing to show', async () => {
     reportFork({ cutSeq: 0 })
     const rendered = await mountTranscript()
     try {
-      expect(bannerOf(rendered.container), 'an empty seed renders no empty banner').toBeNull()
+      expect(blockOf(rendered.container), 'an empty seed renders no empty block').toBeNull()
     } finally {
       rendered.unmount()
     }
   })
 
-  it('keeps the banner out of the conversation rows', async () => {
+  it('keeps the block out of the conversation rows', async () => {
     const plain = await mountTranscript()
     const baseline = mountedRows(plain.container).length
     plain.unmount()
@@ -248,87 +334,14 @@ describe('fork point banner (R2)', () => {
     reportFork({ cutSeq: 0, user: { seq: 3, text: PARENT_QUESTION }, assistant: { seq: 4, text: PARENT_ANSWER } })
     const rendered = await mountTranscript()
     try {
-      const banner = bannerOf(rendered.container) as HTMLElement
-      expect(banner, 'the banner exists for this comparison').not.toBeNull()
-      expect(banner.closest('[data-sidechat-transcript-row]'), 'the banner is not a transcript row').toBeNull()
-      expect(
-        banner.querySelector('[data-sidechat-transcript-row]'),
-        'and contains none',
-      ).toBeNull()
+      const block = blockOf(rendered.container) as HTMLElement
+      expect(block, 'the block exists for this comparison').not.toBeNull()
+      expect(block.closest('[data-sidechat-transcript-row]'), 'the block is not a transcript row').toBeNull()
+      expect(block.querySelector('[data-sidechat-transcript-row]'), 'and contains none').toBeNull()
       expect(
         mountedRows(rendered.container).length,
         'it does not change how many rows mount',
       ).toBe(baseline)
-    } finally {
-      rendered.unmount()
-    }
-  })
-})
-
-/** The stylesheet the transcript's chrome (and the fork line) is styled by. */
-const SHEET = 'src/client/SideChatView.module.css'
-
-/** The sheet's text, comments stripped (a declaration scan, not a parser). */
-function stylesheet(): string {
-  return readFileSync(resolve(process.cwd(), SHEET), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
-}
-
-/** Every declaration block of the rules that target `name`. */
-function ruleBodiesFor(name: string, source: string): string[] {
-  const pattern = new RegExp(`\\.${name}\\b[^{}]*\\{([^{}]*)\\}`, 'g')
-  return [...source.matchAll(pattern)].map(match => match[1] ?? '')
-}
-
-/** Whether a declaration block nails its box to one visual line. */
-function forcesOneLine(declarations: string): boolean {
-  return /white-space:\s*nowrap/.test(declarations) || /line-clamp:\s*1\b/.test(declarations)
-}
-
-/**
- * Whether `node` is constrained to one visual line — by its own inline style, or
- * by a module rule for one of its classes (the class names jsdom sees keep the
- * local part, so the sheet's `.name` is found by containment).
- * @param node - the question node.
- */
-function singleLineConstrained(node: HTMLElement): boolean {
-  const inline = node.style
-  if (inline.getPropertyValue('white-space').includes('nowrap')) return true
-  if (inline.getPropertyValue('line-clamp') === '1') return true
-  if (inline.getPropertyValue('-webkit-line-clamp') === '1') return true
-  const source = stylesheet()
-  const sheetClasses = [...source.matchAll(/\.([A-Za-z][\w-]*)/g)].map(match => match[1] as string)
-  const tokens = (node.getAttribute('class') ?? '').split(/\s+/).filter(token => token !== '')
-  for (const token of tokens) {
-    for (const name of sheetClasses) {
-      if (!token.includes(name)) continue
-      if (ruleBodiesFor(name, source).some(body => forcesOneLine(body))) return true
-    }
-  }
-  return false
-}
-
-describe('fork point banner: the question line (R3)', () => {
-  it('shows the parent question on one visual line under a stable hook', async () => {
-    // A real question can be long and multi-line; the banner summarises it.
-    const question = 'FIRST LINE OF THE PARENT QUESTION\nSECOND LINE OF IT\nTHIRD LINE OF IT'
-    reportFork({ cutSeq: 0, user: { seq: 3, text: question }, assistant: { seq: 4, text: PARENT_ANSWER } })
-    const rendered = await mountTranscript()
-    try {
-      const details = bannerOf(rendered.container) as HTMLElement
-      expect(details, 'the fork point is shown').not.toBeNull()
-      const summary = details.querySelector('summary')
-      const node = details.querySelector<HTMLElement>('[data-sidechat-fork-question]')
-      expect(node, 'the question carries its own stable hook').not.toBeNull()
-      const questionNode = node as HTMLElement
-      expect(summary?.contains(questionNode), 'it belongs to the always-visible line').toBe(true)
-      expect(
-        questionNode.textContent,
-        'the line keeps the whole summary (the route already capped it)',
-      ).toBe(question)
-      expect(
-        singleLineConstrained(questionNode),
-        'the stylesheet nails the question to one visual line (nowrap or line-clamp: 1)',
-      ).toBe(true)
     } finally {
       rendered.unmount()
     }

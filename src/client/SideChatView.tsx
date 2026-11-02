@@ -553,71 +553,47 @@ function TurnFold(props: {
 }
 
 /**
- * The fork point, as a quiet card above the transcript.
+ * The pre-fork context, rendered as the conversation it was.
  *
- * Expandable ONLY when the parent's answer is actually there: a disclosure that
- * opens onto nothing is worse than a plain line, so a fork summarised with just
- * the question (or with neither part) renders the same readable line as a
- * static div, without the chevron.
+ * The reader's verdict on the card that shipped first was that this should not
+ * be a card at all: one divider line says where the block came from, and the
+ * parent's last exchange below it looks exactly like the messages under it —
+ * the question as this thread's own user bubble, the answer as its own assistant
+ * prose, both through the same markdown renderer (and the same prose pass) the
+ * rows use, both carried verbatim. Nothing here expands or collapses.
  */
-function ForkBanner(props: {
-  /** The parent's last question, already capped by the route. */
+function ForkBlock(props: {
+  /** The parent's last question, verbatim. */
   user: string | undefined
-  /** The parent session's own title, when the list knows it. */
-  parentTitle: string | undefined
-  /** The parent's last answer; absent when it could not be summarised. */
+  /** The parent's last answer, verbatim; absent when there is none. */
   answer: string | undefined
+  /** Markdown chrome, the same label bag the transcript rows thread through. */
+  labels: RowLabels
+  /** The view's row prose pass (image destinations, then local links). */
+  rewrite: (text: string) => string
 }): React.ReactNode {
-  // Two rows: the label (and the parent title) identify the thread's origin,
-  // the question quotes what the reader asked. One row for both squeezes the
-  // question to a few characters in a narrow side panel.
-  const caption = (
-    <>
-      <span className={css.sidechatForkLabel}>{t('sideChatForkBanner')}</span>
-      {props.parentTitle === undefined
-        ? null
-        : <span className={css.sidechatForkParent}>{props.parentTitle}</span>}
-    </>
-  )
-  const line = (withChevron: boolean): React.ReactNode => (
-    <>
-      <span className={css.sidechatForkHead}>
-        {withChevron
-          ? (
-            <span className={css.sidechatRowChevron}>
-              <IconChevronRightOutlineRegular size={12} />
-            </span>
-          )
-          : null}
-        {caption}
-      </span>
+  return (
+    <div className={css.sidechatForkPoint} data-sidechat-fork-point="">
+      <div className={css.sidechatForkDivider} data-sidechat-fork-divider="">
+        {t('sideChatForkDivider')}
+      </div>
       {props.user === undefined
         ? null
         : (
-          <span className={css.sidechatForkQuestion} data-sidechat-fork-question="">
-            {props.user}
-          </span>
+          // The same presentation block a user row renders, so the inherited
+          // question can never drift from the thread's own bubbles.
+          <div className={css.sidechatUser} data-sidechat-fork-question="">
+            <MarkdownText {...markdownTextProps(props.rewrite(props.user), props.labels)} />
+          </div>
         )}
-    </>
-  )
-  if (props.answer === undefined || props.answer === '') {
-    return (
-      <div
-        className={clsx(css.sidechatForkPoint, css.sidechatForkPointStatic)}
-        data-sidechat-fork-point=""
-      >
-        <div className={css.sidechatForkLine}>{line(false)}</div>
-      </div>
-    )
-  }
-  return (
-    <details className={css.sidechatForkPoint} data-sidechat-fork-point="">
-      <summary className={css.sidechatForkLine}>{line(true)}</summary>
-      <div className={css.sidechatForkBody}>
-        <div className={css.sidechatForkAnswerLabel}>{t('sideChatForkAnswer')}</div>
-        <div className={css.sidechatForkAnswer}>{props.answer}</div>
-      </div>
-    </details>
+      {props.answer === undefined || props.answer === ''
+        ? null
+        : (
+          <div className={css.sidechatAssistant}>
+            <MarkdownText {...markdownTextProps(props.rewrite(props.answer), props.labels)} />
+          </div>
+        )}
+    </div>
   )
 }
 
@@ -1203,9 +1179,6 @@ export function SideChatView(props: {
     && (forkReport.user !== undefined || forkReport.assistant !== undefined)
     ? forkReport
     : undefined
-  /** The parent session's own title, when the session list knows the thread's
-   *  parent (the host field is `displayTitle`). */
-  const parentTitle = summary?.parentId === undefined ? undefined : list.byId[summary.parentId]?.displayTitle
   /**
    * Whether the host's own session list can ever show the bound session again
    * after archiving it. It cannot for a subagent-origin row: the host's
@@ -2116,10 +2089,11 @@ export function SideChatView(props: {
             which main-pane question they were asking. Chrome, not
             conversation — no row hook, no row count. */}
         {forkPoint !== undefined && (
-          <ForkBanner
+          <ForkBlock
             user={forkPoint.user?.text}
-            parentTitle={parentTitle}
             answer={forkPoint.assistant?.text}
+            labels={rowLabels}
+            rewrite={rewriteChatText}
           />
         )}
         {/* The hidden head of the thread: the spacer holds the scroll space the

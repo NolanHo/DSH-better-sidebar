@@ -759,107 +759,38 @@
 }
 
 /* ── motion vocabulary (crossfade only, ≤200ms; loops reduced-motion off) */
-/* The fork point: one quiet card above the first row — the truncation
- * notice's "a fact, not a warning" volume, in a framed box of its own so the
- * reader sees where the side thread came from without it reading as an alert.
- * The line is a single row (label · question · parent session); the question
- * takes the slack and ellipsises, so a long parent question never pushes the
- * transcript down or wraps the card. */
+/* The pre-fork context. NOT a card: a divider line, then the parent's last
+ * exchange rendered as this thread's own messages (the `sidechatUser` bubble
+ * and the `sidechatAssistant` prose carry their own look), so the block only
+ * spaces the pieces and cannot drift from the conversation below it. */
 .sidechatForkPoint {
   flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   min-width: 0;
-  padding: 6px 10px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 8px;
-  background: var(--dsw-alias-bg-layer-2);
+}
+
+/* The boundary: a hairline either side of the localized copy, so the reader
+ * sees where the inherited conversation ends. */
+.sidechatForkDivider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
   font-size: var(--dsh-content-font-size-secondary, 13px);
   line-height: calc(18px + var(--dsh-content-font-delta-secondary, 0px));
   font-family: var(--dsw-font-family);
   color: var(--dsw-alias-label-tertiary);
+  user-select: none;
 }
 
-.sidechatForkLine {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-  overflow: hidden;
-  list-style: none;
-  cursor: pointer;
-}
-
-/* The caption row: disclosure, label, and the parent session's own title. */
-.sidechatForkHead {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.sidechatForkLine::-webkit-details-marker {
-  display: none;
-}
-
-/* A fork summarised without an answer has nothing to open: the same line, as a
- * plain row (no chevron, no pointer, no disclosure). */
-.sidechatForkPointStatic .sidechatForkLine {
-  cursor: default;
-}
-
-.sidechatForkPoint[open] > .sidechatForkLine .sidechatForkHead .sidechatRowChevron {
-  transform: rotate(90deg);
-}
-
-.sidechatForkLabel {
-  flex: none;
-  color: var(--dsw-alias-label-secondary);
-}
-
-/* `min-width: 0` is what lets a flex item actually shrink below its content
- * width — without it the ellipsis below never engages and the question pushes
- * the parent session off the line. */
-.sidechatForkQuestion {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--dsw-alias-label-secondary);
-}
-
-.sidechatForkParent {
-  flex: 0 1 auto;
-  margin-left: auto;
-  max-width: 55%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--dsw-alias-label-tertiary);
-}
-
-/* The expanded answer tail: a hairline separates it from the line, and the
- * text scrolls in place past its cap instead of stretching the card. */
-.sidechatForkBody {
-  margin-top: 6px;
-  padding-top: 6px;
+.sidechatForkDivider::before,
+.sidechatForkDivider::after {
+  content: '';
+  flex: 1 1 0;
+  min-width: 12px;
   border-top: 1px solid var(--dsw-alias-border-l1);
-  min-width: 0;
-}
-
-.sidechatForkAnswerLabel {
-  margin-bottom: 2px;
-  color: var(--dsw-alias-label-tertiary);
-}
-
-.sidechatForkAnswer {
-  max-height: 180px;
-  overflow-y: auto;
-  min-width: 0;
-  color: var(--dsw-alias-label-secondary);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }
 
 /* One Turn's work-detail disclosure (R1): the line is chrome, the body holds
