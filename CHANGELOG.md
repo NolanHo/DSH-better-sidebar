@@ -4,6 +4,8 @@
 
 ### 未发布
 
+- 🧷 **从侧栏打开的历史会话里也能新建侧边对话了**：`sidechat.start` 只在 LIVE 注册表里找父会话的 agent，于是「重启后还没跑过回合」的冷存储会话被直接判成 `409 parent session "…" is not running`——而「不在 live 表里」并不等于「没在运行」：宿主本来就能把它 resume 起来。现在 live 表未命中时再用结构探针问一次 `ctx.get('sessionController').resolveAgent(sessionId)`，只有真的拿到 `{ agent }` 才采用；服务缺失、resume 抛错、或宿主回 `{ error }`（Session 域失败）时保持原来的 409 与原文案；父会话本来就 live 时**绝不**触发 resume。
+  - 🧪 测试：`tests/sidechat-start-cold-parent.spec.ts`（冷父会话经宿主 resume 后正常建线程且子会话绑定父 id；live 父会话零 resume；无服务/抛错/`{ error }` 三种失败都保持 409 原文案且不创建线程）。
 - 🧵 **fork 处不再是一张卡片，而是「分割线 + 两段普通消息」；继承的内容也不再截断**：横幅卡片（可展开、带说明行、正文截到 4000 字符）在真机上被判为不对——读者要看的是主会话原话，不是被摘要过的一段。现在 `data-sidechat-fork-point` 只是一个普通容器：先是一条发丝分割线（文案「分支前的主会话」），接着**继承的提问**用本线程普通用户气泡的同一呈现块与同一 markdown 渲染（`data-sidechat-fork-question` 保留、逐字全量），再接着**继承的回答**用普通 assistant 消息的同一呈现块（`**强调**`→`<strong>`、`` `代码` ``→`<code>`、逐字全量）；没有回答时只有分割线与提问，不出现空的 assistant 块。路由侧的 400 / 4000 字符上限与边界截断一并删除：`fork` 的 `user` / `assistant` 按日志原样返回，无省略号。`sideChatForkBanner` / `sideChatForkAnswer` 从全部 21 份词典退休，新增 `sideChatForkDivider`（21 份）。
   - 🧪 测试：`tests/sidechat-fork-route.spec.ts`（超长提问与回答逐字返回、无省略号）；`tests/sidechat-fork-point.spec.tsx`（块内无 `<details>`/`<summary>`、分割线在前、提问用用户气泡呈现且逐字、回答用 assistant 呈现且 markdown 生效、无回答时不出 assistant 块、不占转录行）。
 - 🗂 **「工作细节」控制行的文案改成主会话同款，fork 横幅也不再给出空展开器**：折叠行的标题此前是一句插件自造的「工作细节」，而主会话这里用的是 `message.turnProcess.*`——已结算且有实测耗时 → 「已完成，用时 1.2s」（耗时取该轮 `turn/end` 自己的 `durationMs`，与转录尾部的用量行走同一个 `formatDurationMs`，两处不可能打架）；已结算但测不到耗时 → 「已完成」；仍在运行 → 「运行中…」并保持展开。另：fork 横幅只有在**确实有「分叉前的回答」**时才渲染可展开的 `<details>`，只有问题（或什么都没有）时退化成一行静态卡片——不再出现「点开是空的」。`sideChatWorkDetails` 从全部 21 份词典里退休，三个新文案进全部 21 份。

@@ -273,6 +273,46 @@ function liveThreadAgent(ctx: Context, childId: string): Agent | undefined {
 }
 
 /**
+ * The host's session-controller face, read STRUCTURALLY (the plugin never
+ * imports host types): `resolveAgent` resumes a stored session into a live
+ * agent, or reports a Session-domain failure instead of throwing.
+ */
+interface SessionControllerFace {
+  resolveAgent?: (sessionId: string) => Promise<{ agent?: unknown; error?: unknown } | undefined>
+}
+
+/**
+ * The parent agent a side thread inherits from.
+ *
+ * A stored conversation opened from the sidebar has history but no live agent —
+ * no turn has run since the process started — and "absent from the LIVE
+ * registry" is not "not running": the host can resume it, and that is exactly
+ * what the session controller exposes. So the live registry stays the fast path
+ * (and is never second-guessed when it answers), and only a miss asks the
+ * controller. Anything short of `{ agent }` — a composition with no controller,
+ * a resume that throws, or a Session-domain `{ error }` — is reported as "not
+ * running", the failure this path has always produced.
+ * @param ctx - host plugin context.
+ * @param sessionId - the parent session the thread forks from.
+ * @returns the parent agent, or undefined when it cannot be obtained.
+ */
+async function parentAgentOf(ctx: Context, sessionId: string): Promise<Agent | undefined> {
+  const live = liveThreadAgent(ctx, sessionId)
+  if (live !== undefined) return live
+  const controller = ctx.get('sessionController') as SessionControllerFace | undefined
+  const resolve = controller?.resolveAgent
+  if (typeof resolve !== 'function') return undefined
+  try {
+    const resolved = await resolve(sessionId)
+    const agent = resolved?.agent
+    return agent === undefined || agent === null ? undefined : agent as Agent
+  } catch {
+    // A resume failure is not an agent: keep the honest "not running".
+    return undefined
+  }
+}
+
+/**
  * The host's lightweight stored-session observation (`sessionPersistence.stat`),
  * read structurally: the plugin's own mirror of the service only models the
  * handle API, and a host without `stat` must degrade to an uncached read rather
@@ -616,7 +656,9 @@ export function buildSidechatApi(ctx: Context, live?: AssistantLiveBuffer): Side
       const sessionId = requireString(payload, 'sessionId')
       const rawQuestion = (payload as { question?: unknown }).question
       const question = typeof rawQuestion === 'string' ? rawQuestion.trim() : ''
-      const parent = liveThreadAgent(ctx, sessionId)
+      // The parent may be a COLD stored conversation (opened from the sidebar
+      // after a restart): ask the host to resume it before refusing.
+      const parent = await parentAgentOf(ctx, sessionId)
       if (parent === undefined) {
         throw new SidebarError('sidechat-error', `parent session "${sessionId}" is not running`, 409)
       }
