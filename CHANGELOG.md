@@ -4,6 +4,8 @@
 
 ### 未发布
 
+- ⏱ **建线程的超时不再写死 15 秒，改成可按部署配置，默认 120 秒**：新建侧边对话要把父会话整段日志拷进种子，父会话一大（生产里有十几 MB 压缩日志的会话）15 秒根本不够，于是被 `AbortSignal.timeout` 直接 abort，用户看到的是 `thread creation failed: The operation was aborted due to timeout`——一个读起来像模型故障的报错。现在这个预算属于部署：插件配置新增 `createTimeoutMs`（整数，5000–600000 毫秒，默认 120000，越界或小数按配置错误拒绝而不是静默截断），`sidechat.start` 从解析后的配置取值；失败仍包成 `thread creation failed: …` + 500。
+  - 🧪 测试：`tests/sidechat-create-timeout-config.spec.ts`（默认 120000、显式值原样透传、schema 填默认并接受上下边界、越界/小数被拒、路由按配置构造取消信号且不再出现 15000、未传配置时回落默认、create 拒绝仍包成 500）。
 - 🧷 **从侧栏打开的历史会话里也能新建侧边对话了**：`sidechat.start` 只在 LIVE 注册表里找父会话的 agent，于是「重启后还没跑过回合」的冷存储会话被直接判成 `409 parent session "…" is not running`——而「不在 live 表里」并不等于「没在运行」：宿主本来就能把它 resume 起来。现在 live 表未命中时再用结构探针问一次 `ctx.get('sessionController').resolveAgent(sessionId)`，只有真的拿到 `{ agent }` 才采用；服务缺失、resume 抛错、或宿主回 `{ error }`（Session 域失败）时保持原来的 409 与原文案；父会话本来就 live 时**绝不**触发 resume。
   - 🧪 测试：`tests/sidechat-start-cold-parent.spec.ts`（冷父会话经宿主 resume 后正常建线程且子会话绑定父 id；live 父会话零 resume；无服务/抛错/`{ error }` 三种失败都保持 409 原文案且不创建线程）。
 - 🧵 **fork 处不再是一张卡片，而是「分割线 + 两段普通消息」；继承的内容也不再截断**：横幅卡片（可展开、带说明行、正文截到 4000 字符）在真机上被判为不对——读者要看的是主会话原话，不是被摘要过的一段。现在 `data-sidechat-fork-point` 只是一个普通容器：先是一条发丝分割线（文案「分支前的主会话」），接着**继承的提问**用本线程普通用户气泡的同一呈现块与同一 markdown 渲染（`data-sidechat-fork-question` 保留、逐字全量），再接着**继承的回答**用普通 assistant 消息的同一呈现块（`**强调**`→`<strong>`、`` `代码` ``→`<code>`、逐字全量）；没有回答时只有分割线与提问，不出现空的 assistant 块。路由侧的 400 / 4000 字符上限与边界截断一并删除：`fork` 的 `user` / `assistant` 按日志原样返回，无省略号。`sideChatForkBanner` / `sideChatForkAnswer` 从全部 21 份词典退休，新增 `sideChatForkDivider`（21 份）。

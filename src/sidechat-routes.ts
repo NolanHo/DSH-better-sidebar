@@ -68,6 +68,7 @@ import {
   type SidechatForkPoint,
 } from './sidechat-core.ts'
 import type { AssistantLiveBuffer } from './assistant-live.ts'
+import { resolveSidebarConfig, type ResolvedSidebarConfig } from './config.ts'
 import { requireString, SidebarError } from './wire.ts'
 import { readPersistedSession } from './session-store.ts'
 
@@ -149,10 +150,6 @@ export interface SidechatRoutes {
    *  composer. */
   'sidechat.model'(payload: unknown): Promise<{ accepted: true; selection: SidechatModelSelection }>
 }
-
-/** Timeout guarding the create call (the registry detaches it before the
- *  handle becomes visible, so the child is never cancelled by it). */
-const CREATE_TIMEOUT_MS = 15_000
 
 /** Head cap of one `sidechat.events` response (the ceiling the old
  *  client-side walk could load: 40 pages × 200 events). A pathological
@@ -650,7 +647,11 @@ async function modelCatalogOf(ctx: Context): Promise<SidechatModelCatalog> {
  *  @param ctx - host plugin context.
  *  @param live - the live assistant stream buffer; absent only in tests that
  *    never exercise streaming (then every `live` response is empty). */
-export function buildSidechatApi(ctx: Context, live?: AssistantLiveBuffer): SidechatRoutes {
+export function buildSidechatApi(
+  ctx: Context,
+  live?: AssistantLiveBuffer,
+  resolved: ResolvedSidebarConfig = resolveSidebarConfig(undefined),
+): SidechatRoutes {
   return {
     'sidechat.start': async (payload: unknown) => {
       const sessionId = requireString(payload, 'sessionId')
@@ -760,7 +761,11 @@ export function buildSidechatApi(ctx: Context, live?: AssistantLiveBuffer): Side
         inheritedEventCount: seed.length as SessionLogOffset,
         agentOptions: childAgentOptions,
         setup,
-        signal: AbortSignal.timeout(CREATE_TIMEOUT_MS),
+        // Budget of the create call, from the deployment's own settings: the
+        // seed copies the parent's whole log, so a large parent needs more than
+        // any constant can guess. The registry detaches the handle before it
+        // becomes visible, so the child is never cancelled by this.
+        signal: AbortSignal.timeout(resolved.createTimeoutMs),
       }
       const agents = ctx.get('agents') as { create(options: CreateAgentOptions): Promise<{ agent: Agent; dispose(): Promise<void> }> } | undefined
       if (agents?.create === undefined) {

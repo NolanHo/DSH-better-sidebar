@@ -1264,7 +1264,7 @@ function buildApi(
     // identities are fenced from the generic session RPCs (agent-lookup
     // ownership), and the thread is created with a CUSTOM seed the stock
     // fork APIs cannot express.
-    ...buildSidechatApi(ctx, assistantLive),
+    ...buildSidechatApi(ctx, assistantLive, resolved),
   }
 }
 
