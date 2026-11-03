@@ -473,6 +473,7 @@ export const ar: Record<string, string> = {
   sideChatBlockDone: 'اكتمل',
   sideChatBlockNoOutput: '(لا يوجد إخراج)',
   sideChatForkDivider: 'الجلسة الرئيسية قبل التفرّع',
+  sideChatForkDividerEnd: 'نهاية الجلسة الرئيسية قبل التفرّع',
   sideChatTurnTook: 'اكتمل في {duration}',
   sideChatTurnDone: 'اكتمل',
   sideChatTurnRunning: 'قيد التشغيل…',

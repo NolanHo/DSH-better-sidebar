@@ -472,6 +472,7 @@ export const tr: Record<string, string> = {
   sideChatBlockDone: 'Tamamlandı',
   sideChatBlockNoOutput: '(çıktı yok)',
   sideChatForkDivider: 'Ayrılmadan önceki ana oturum',
+  sideChatForkDividerEnd: 'Ayrılmadan önceki ana oturumun sonu',
   sideChatTurnTook: '{duration} sürede tamamlandı',
   sideChatTurnDone: 'Tamamlandı',
   sideChatTurnRunning: 'Çalışıyor…',

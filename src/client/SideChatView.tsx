@@ -556,8 +556,9 @@ function TurnFold(props: {
  * The pre-fork context, rendered as the conversation it was.
  *
  * The reader's verdict on the card that shipped first was that this should not
- * be a card at all: one divider line says where the block came from, and the
- * parent's last exchange below it looks exactly like the messages under it —
+ * be a card at all: two matching divider lines bracket the block — the first
+ * says where it came from, the last where the inherited context stops — and the
+ * parent's last exchange between them looks exactly like the messages under it:
  * the question as this thread's own user bubble, the answer as its own assistant
  * prose, both through the same markdown renderer (and the same prose pass) the
  * rows use, both carried verbatim. Nothing here expands or collapses.
@@ -593,6 +594,11 @@ function ForkBlock(props: {
             <MarkdownText {...markdownTextProps(props.rewrite(props.answer), props.labels)} />
           </div>
         )}
+      {/* The same line closes the block: the inherited context stops here, so
+          what follows reads as this thread's own conversation again. */}
+      <div className={css.sidechatForkDivider} data-sidechat-fork-divider-end="">
+        {t('sideChatForkDividerEnd')}
+      </div>
     </div>
   )
 }

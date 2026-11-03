@@ -470,6 +470,7 @@ export const ru: Record<string, string> = {
   sideChatBlockDone: 'Готово',
   sideChatBlockNoOutput: '(нет вывода)',
   sideChatForkDivider: 'Основная сессия до ответвления',
+  sideChatForkDividerEnd: 'Конец основной сессии до ответвления',
   sideChatTurnTook: 'Завершено за {duration}',
   sideChatTurnDone: 'Завершено',
   sideChatTurnRunning: 'Выполняется…',

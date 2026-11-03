@@ -487,6 +487,7 @@ export const zhMO: Record<string, string> = {
   sideChatBlockDone: '完成',
   sideChatBlockNoOutput: '（無輸出）',
   sideChatForkDivider: '分支前的主會話',
+  sideChatForkDividerEnd: '分支前的主會話結束',
   sideChatTurnTook: '已完成，耗時 {duration}',
   sideChatTurnDone: '已完成',
   sideChatTurnRunning: '執行中…',

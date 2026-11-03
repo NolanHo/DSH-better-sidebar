@@ -470,6 +470,7 @@ export const nl: Record<string, string> = {
   sideChatBlockDone: 'Voltooid',
   sideChatBlockNoOutput: '(geen uitvoer)',
   sideChatForkDivider: 'De hoofdsessie vóór de aftakking',
+  sideChatForkDividerEnd: 'Einde van de hoofdsessie vóór de aftakking',
   sideChatTurnTook: 'Voltooid in {duration}',
   sideChatTurnDone: 'Voltooid',
   sideChatTurnRunning: 'Bezig…',

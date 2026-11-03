@@ -474,6 +474,7 @@ export const pl: Record<string, string> = {
   sideChatBlockDone: 'Zakończono',
   sideChatBlockNoOutput: '(brak wyniku)',
   sideChatForkDivider: 'Sesja główna przed odgałęzieniem',
+  sideChatForkDividerEnd: 'Koniec sesji głównej przed odgałęzieniem',
   sideChatTurnTook: 'Ukończono w {duration}',
   sideChatTurnDone: 'Ukończono',
   sideChatTurnRunning: 'W toku…',

@@ -458,6 +458,7 @@ export const de: Record<string, string> = {
   sideChatBlockDone: 'Fertig',
   sideChatBlockNoOutput: '(keine Ausgabe)',
   sideChatForkDivider: 'Die Hauptsitzung vor der Abzweigung',
+  sideChatForkDividerEnd: 'Ende der Hauptsitzung vor der Abzweigung',
   sideChatTurnTook: 'Fertig in {duration}',
   sideChatTurnDone: 'Fertig',
   sideChatTurnRunning: 'Läuft…',

@@ -472,6 +472,7 @@ export const vi: Record<string, string> = {
   sideChatBlockDone: 'Hoàn tất',
   sideChatBlockNoOutput: '(không có đầu ra)',
   sideChatForkDivider: 'Phiên chính trước khi tách',
+  sideChatForkDividerEnd: 'Kết thúc phiên chính trước khi tách',
   sideChatTurnTook: 'Hoàn tất trong {duration}',
   sideChatTurnDone: 'Hoàn tất',
   sideChatTurnRunning: 'Đang chạy…',

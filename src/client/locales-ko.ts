@@ -464,6 +464,7 @@ export const ko: Record<string, string> = {
   sideChatBlockDone: '완료',
   sideChatBlockNoOutput: '(출력 없음)',
   sideChatForkDivider: '분기 전 메인 세션',
+  sideChatForkDividerEnd: '분기 전 메인 세션 종료',
   sideChatTurnTook: '{duration} 만에 완료',
   sideChatTurnDone: '완료',
   sideChatTurnRunning: '실행 중…',

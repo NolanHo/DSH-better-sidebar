@@ -472,6 +472,7 @@ export const hi: Record<string, string> = {
   sideChatBlockDone: 'पूर्ण',
   sideChatBlockNoOutput: '(कोई आउटपुट नहीं)',
   sideChatForkDivider: 'शाखा बनने से पहले का मुख्य सत्र',
+  sideChatForkDividerEnd: 'शाखा बनने से पहले का मुख्य सत्र समाप्त',
   sideChatTurnTook: '{duration} में पूर्ण',
   sideChatTurnDone: 'पूर्ण',
   sideChatTurnRunning: 'चल रहा है…',

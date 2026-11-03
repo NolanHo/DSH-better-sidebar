@@ -455,6 +455,7 @@ export const sv: Record<string, string> = {
   sideChatBlockDone: 'Klar',
   sideChatBlockNoOutput: '(ingen utdata)',
   sideChatForkDivider: 'Huvudsessionen före avgreningen',
+  sideChatForkDividerEnd: 'Slutet på huvudsessionen före avgreningen',
   sideChatTurnTook: 'Klart på {duration}',
   sideChatTurnDone: 'Klart',
   sideChatTurnRunning: 'Kör…',

@@ -470,6 +470,7 @@ export const id: Record<string, string> = {
   sideChatBlockDone: 'Selesai',
   sideChatBlockNoOutput: '(tanpa output)',
   sideChatForkDivider: 'Sesi utama sebelum bercabang',
+  sideChatForkDividerEnd: 'Akhir sesi utama sebelum bercabang',
   sideChatTurnTook: 'Selesai dalam {duration}',
   sideChatTurnDone: 'Selesai',
   sideChatTurnRunning: 'Berjalan…',

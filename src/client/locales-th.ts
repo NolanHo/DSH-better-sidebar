@@ -472,6 +472,7 @@ export const th: Record<string, string> = {
   sideChatBlockDone: 'เสร็จสิ้น',
   sideChatBlockNoOutput: '(ไม่มีเอาต์พุต)',
   sideChatForkDivider: 'เซสชันหลักก่อนแยกสาขา',
+  sideChatForkDividerEnd: 'สิ้นสุดเซสชันหลักก่อนแยกสาขา',
   sideChatTurnTook: 'เสร็จใน {duration}',
   sideChatTurnDone: 'เสร็จแล้ว',
   sideChatTurnRunning: 'กำลังทำงาน…',

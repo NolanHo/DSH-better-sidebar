@@ -472,6 +472,7 @@ export const ja: Record<string, string> = {
   sideChatBlockDone: '完了',
   sideChatBlockNoOutput: '（出力なし）',
   sideChatForkDivider: '分岐前のメインセッション',
+  sideChatForkDividerEnd: '分岐前のメインセッションはここまで',
   sideChatTurnTook: '{duration} で完了',
   sideChatTurnDone: '完了',
   sideChatTurnRunning: '実行中…',

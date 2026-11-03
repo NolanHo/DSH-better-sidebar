@@ -463,6 +463,7 @@ export const it: Record<string, string> = {
   sideChatBlockDone: 'Completato',
   sideChatBlockNoOutput: '(nessun output)',
   sideChatForkDivider: 'La sessione principale prima della diramazione',
+  sideChatForkDividerEnd: 'Fine della sessione principale prima della diramazione',
   sideChatTurnTook: 'Completato in {duration}',
   sideChatTurnDone: 'Completato',
   sideChatTurnRunning: 'In esecuzione…',
