@@ -4,6 +4,8 @@
 
 ### 未发布
 
+- 🧭 **侧边对话的子会话按父会话的 workspace 路径 attach，工具仍在读者当前目录里运行**：宿主的 workspace attach 要求子会话 **header 的 cwd 严格等于 workspace 路径**（`packages/workspace/workspace/src/entity.ts`），而 `sidechat.start` 此前用同一个 `parentCwd`（取 `workingDirectory.get()`，即实时工作目录）同时喂 `meta.cwd` 与种子里的 `working-directory/change` 戳——读者在主会话里 `cd` 到 workspace 之外后再新建侧边对话，子会话 header cwd 就成了那个外部路径，fork 直接失败（`session/workspace-attach-failed … its cwd resolves to '…'`）。现在两个问题各用各的答案：`meta.cwd` 取**父会话的 header cwd**（workspace 路径，供 attach），种子末尾的 `working-directory/change` 戳仍取**实时 cwd**（工具真正运行的位置）；父会话没有 header cwd 时两者都回落实时 cwd，组合里没有 `workingDirectory` 服务时两者都用 header cwd，两者都没有时不发明 cwd。`directorySeed` 的生成条件不变。
+  - 🧪 测试：`tests/sidechat-start-workspace-cwd.spec.ts`（attach 用 header cwd 且绝不等于实时 cwd、戳仍是实时 cwd、无 header cwd 回落、两者相同时一致、无服务时用 header cwd、两者都缺不发明 cwd）与 `tests/sidechat-routes.spec.ts`（两处断言翻转为 header cwd）。
 - ⏱ **建线程的超时不再写死 15 秒，改成可按部署配置，默认 120 秒**：新建侧边对话要把父会话整段日志拷进种子，父会话一大（生产里有十几 MB 压缩日志的会话）15 秒根本不够，于是被 `AbortSignal.timeout` 直接 abort，用户看到的是 `thread creation failed: The operation was aborted due to timeout`——一个读起来像模型故障的报错。现在这个预算属于部署：插件配置新增 `createTimeoutMs`（整数，5000–600000 毫秒，默认 120000，越界或小数按配置错误拒绝而不是静默截断），`sidechat.start` 从解析后的配置取值；失败仍包成 `thread creation failed: …` + 500。
   - 🧪 测试：`tests/sidechat-create-timeout-config.spec.ts`（默认 120000、显式值原样透传、schema 填默认并接受上下边界、越界/小数被拒、路由按配置构造取消信号且不再出现 15000、未传配置时回落默认、create 拒绝仍包成 500）。
 - 🧷 **从侧栏打开的历史会话里也能新建侧边对话了**：`sidechat.start` 只在 LIVE 注册表里找父会话的 agent，于是「重启后还没跑过回合」的冷存储会话被直接判成 `409 parent session "…" is not running`——而「不在 live 表里」并不等于「没在运行」：宿主本来就能把它 resume 起来。现在 live 表未命中时再用结构探针问一次 `ctx.get('sessionController').resolveAgent(sessionId)`，只有真的拿到 `{ agent }` 才采用；服务缺失、resume 抛错、或宿主回 `{ error }`（Session 域失败）时保持原来的 409 与原文案；父会话本来就 live 时**绝不**触发 resume。

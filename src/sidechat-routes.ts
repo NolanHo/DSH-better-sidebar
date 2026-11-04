@@ -665,7 +665,16 @@ export function buildSidechatApi(
       }
       const parentSession = parent.session
       const workingDirectory = ctx.get('workingDirectory')
-      const parentCwd = workingDirectory?.get(parentSession) ?? parentSession.header.cwd
+      // Two different questions, two different answers. The Host's workspace
+      // attach requires the child's HEADER cwd to EQUAL the workspace path
+      // (packages/workspace/workspace/src/entity.ts), so `meta.cwd` comes from
+      // the parent HEADER. The live cwd — where the reader `cd`-ed to — is
+      // still what the child's tools must run in, and it reaches the child
+      // through the seeded `working-directory/change` stamp below.
+      const headerCwd = parentSession.header.cwd
+      const liveCwd = workingDirectory?.get(parentSession)
+      const attachCwd = headerCwd ?? liveCwd
+      const stampCwd = liveCwd ?? headerCwd
       // The parent's CURRENT model route. agent.options freezes the
       // creation-time deployment default — a composer model switch rides
       // `model/selection` events + the session-local selection and never
@@ -704,13 +713,14 @@ export function buildSidechatApi(
       // A truncated inheritance can end before the parent's last directory
       // change. Header cwd alone cannot win: the host projection replays seed
       // working-directory/change events over it. Stamp the committed directory
-      // at the seed boundary, using the host-owned event rather than refolding
-      // its history or asking set() to enqueue a synthetic user notice.
+      // (the parent's LIVE cwd) at the seed boundary, using the host-owned event
+      // rather than refolding its history or asking set() to enqueue a
+      // synthetic user notice.
       const directorySeed: SeedEvent[] = workingDirectory === undefined ? [] : [{
         type: 'working-directory/change',
         seq: inheritance.seed.length,
         time: Date.now(),
-        data: { cwd: parentCwd },
+        data: { cwd: stampCwd },
       }]
       const descriptorEvent: SeedEvent = {
         type: 'subagent/descriptor',
@@ -745,7 +755,7 @@ export function buildSidechatApi(
       const options: CreateAgentOptions = {
         sessionId: childId,
         meta: {
-          ...(parentCwd === undefined ? {} : { cwd: parentCwd }),
+          ...(attachCwd === undefined ? {} : { cwd: attachCwd }),
           parentSession: parentSession.id,
           isSeeded: true,
           origin: 'subagent',
