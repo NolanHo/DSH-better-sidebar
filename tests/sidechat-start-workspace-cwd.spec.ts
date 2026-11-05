@@ -46,6 +46,9 @@ function agent(id: string, over: { events?: unknown[]; header?: Record<string, u
     id,
     status: 'idle' as const,
     options: { provider: 'test', model: 'model-x' },
+    // DSH 0.2.2 moved the model seam onto the agent itself (`agent.model`): the
+    // fake records the selections the plugin applies instead of a waterfall.
+    model: { current: vi.fn(() => undefined), select: vi.fn() },
     ctx: { on: vi.fn(() => () => {}) },
     session: {
       id,

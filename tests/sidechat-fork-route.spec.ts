@@ -16,7 +16,7 @@
  * ============================ CONTRACT ============================
  * 1. On the FIRST pull (`afterSeq === undefined`) the result carries an
  *    ADDITIVE `fork` field:
- *      `{ cutSeq: number, user?: { seq, text }, assistant?: { seq, text } }`
+ *      `{ cutSeq: number, user?: { seq, text, messageId? }, assistant?: { seq, text, messageId? } }`
  *    where `cutSeq` is the seq of the inherited `session/end-seed` marker the
  *    route cut at (the LAST one — the same marker `threadOwnLogEvents` cuts at,
  *    so a restored/forked-of-a-fork log reports the cut it actually shows).
@@ -35,6 +35,9 @@
  * 4. Independently optional: a message whose text blocks are empty (an
  *    image-only prompt) contributes nothing, so `user` is absent rather than
  *    `{ text: '' }`. With neither part present the field is still `{ cutSeq }`.
+ *    `messageId` rides the part only when the log records a durable identity
+ *    (`data.id` on the user message, `message.id` on the assistant message) —
+ *    an older log leaves the field ABSENT, never `''`.
  * 5. Absent when it cannot be known: no inherited marker (an unseeded log) →
  *    NO `fork` field at all; and a DELTA pull (`afterSeq` given) never carries
  *    it (the client caches it from the first pull only).
@@ -58,10 +61,11 @@ import { describe, expect, it, vi } from 'vitest'
 import { buildSidechatApi } from '../src/sidechat-routes.ts'
 import type { Context } from '../src/context-types.ts'
 
-/** One `{seq,text}` part of the fork field. */
+/** One `{seq,text}` part of the fork field, plus the durable id when the log records one. */
 interface ForkPart {
   seq: number
   text: string
+  messageId?: string
 }
 
 /** The `sidechat.events` result, plus the field this contract adds. */
@@ -181,6 +185,24 @@ describe('sidechat.events fork point (R2)', () => {
       seq: 4,
       text: 'PARENT-ANSWER-TWO',
     })
+  })
+
+  it('carries each part’s durable message id when the log records one, and omits an unrecorded one', async () => {
+    const result = await eventsRoute(seededLog())
+    expect(result.fork?.user?.messageId, 'the user part carries the log’s own id').toBe('mu-3')
+    expect(result.fork?.assistant, 'a message with no recorded id omits the field').not.toHaveProperty('messageId')
+
+    // The assistant identity lives on the message object, not on the event.
+    const answered = {
+      type: 'assistant/message',
+      seq: 2,
+      time: 2_000,
+      surfaceOp: 'append',
+      data: { turn: 1, step: 1, message: { id: 'ma-2', content: [{ type: 'text', text: 'PARENT-ANSWER' }] } },
+    }
+    const identified = await eventsRoute([userEvent(1, 'PARENT-QUESTION'), answered, seedMarker(3), ...ownLog()])
+    expect(identified.fork?.user?.messageId).toBe('mu-1')
+    expect(identified.fork?.assistant?.messageId, 'the answer’s id comes from message.id').toBe('ma-2')
   })
 
   it('still returns the CUT tail as the transcript events', async () => {

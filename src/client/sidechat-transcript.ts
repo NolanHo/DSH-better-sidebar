@@ -39,6 +39,7 @@ import type {
   WebBlockProps,
   WebSourceView,
 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { projectSidechatContent, type SidechatImageOccurrence } from '../sidechat-images.ts'
 import type { SidebarHistoryEntry } from '../context-types.ts'
 import { isContextInjectionMessage, SIDE_BOUNDARY_PROMPT, threadOwnLogEvents } from '../sidechat-core.ts'
 
@@ -96,8 +97,10 @@ export type SidechatTranscriptRow =
     seq: number
     text: string
     messageId?: string
-    /** The message's `image` / `file` blocks, in content order (a bubble is one
-     *  visual unit, so they ride the row instead of becoming siblings). */
+    /** Upstream's projected image occurrences (side-chat images). */
+    images?: SidechatImageOccurrence[]
+    /** The message's `file` blocks, in content order (a bubble is one visual
+     *  unit, so they ride the row instead of becoming siblings). */
     attachments?: readonly SidechatAttachment[]
   }
   /** A context injection (the side boundary prompt + the parked in-progress
@@ -956,9 +959,11 @@ export function transcriptRows(entries: readonly SidebarHistoryEntry[], prev?: r
       case 'user/message': {
         const content = Array.isArray(data.content) ? data.content : []
         const attachments = attachmentsOf(content)
+        const projected = projectSidechatContent(data.content, '\n\n')
         // An attachment-only message is not a "…" row: the thumbnail IS its
         // content (the placeholder exists for a message with nothing to show).
-        const text = attachments.length > 0 && joinedText(content) === '' ? '' : blockText(content)
+        const hasVisual = attachments.length > 0 || projected.images !== undefined
+        const text = projected.text === '' ? (hasVisual ? '' : '…') : projected.text
         // The durable identity the pending-row dedupe keys on (absent on logs
         // written before the field existed, and on the loose fixtures).
         const messageId = typeof data.id === 'string' && data.id !== '' ? data.id : undefined
@@ -1016,6 +1021,7 @@ export function transcriptRows(entries: readonly SidebarHistoryEntry[], prev?: r
         rows.push({
           kind: 'user',
           seq: event.seq,
+          ...projected,
           text,
           ...(messageId !== undefined ? { messageId } : {}),
           ...(attachments.length > 0 ? { attachments } : {}),
@@ -1308,6 +1314,7 @@ function rowsEqual(a: SidechatTranscriptRow, b: SidechatTranscriptRow): boolean 
     case 'user': {
       const other = b as typeof a
       return a.text === other.text && a.messageId === other.messageId
+        && JSON.stringify(a.images) === JSON.stringify(other.images)
         && attachmentsEqual(a.attachments, other.attachments)
     }
     case 'injection':

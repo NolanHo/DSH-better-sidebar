@@ -17,9 +17,15 @@
  *
  * ============================ CONTRACT ============================
  * 1. SOURCES. An `image` content block renders a thumbnail wherever it can
- *    legally appear in the log: a user `user/message` content list (the legacy
- *    top-level shape), an `assistant/message` content list, and the inner
- *    content list of a `tool/result` `tool-result` block.
+ *    legally appear in the log OUTSIDE the user bubble: an
+ *    `assistant/message` content list, and the inner content list of a
+ *    `tool/result` `tool-result` block.
+ *    MERGED BEHAVIOUR (v0.30.x): a USER-message image is drawn by the upstream
+ *    `SidechatImages` surface — one `/sidebar/sidechat-image` read addressed by
+ *    `{childId, messageId, blockIndex}` — so this view does NOT draw it a second
+ *    time here; the user bubble keeps only its `file` blocks on this path. The
+ *    first test's `att-user` read is still expected, because the assistant
+ *    message in the fixture references that same attachment id.
  * 2. BYTES COME FROM THE HOST REMOTE ONLY:
  *      `ctx.get('remote').session.attachment({ sessionId, attachmentId })`
  *    with `sessionId` = the THREAD's id (the session whose own log references
@@ -309,13 +315,15 @@ describe('image and file content blocks in the transcript (D13)', () => {
       .not.toBe(IMAGE_FAILED_KEY)
   })
 
-  it('renders a thumbnail for an image block in a user message, a tool result and an assistant message', async () => {
+  it('renders a thumbnail for an image block in a tool result and an assistant message', async () => {
     const rendered = await mountWith(remoteStub(answerOk))
     try {
       expect(rendered.container.textContent ?? '', 'the transcript itself renders').toContain('compare these')
 
       const images = thumbnails(rendered.container)
-      expect(images, 'every image block renders a thumbnail').toHaveLength(4)
+      // Three: the two assistant-message blocks plus the tool result. The user
+      // bubble's own image belongs to upstream's SidechatImages (see the header).
+      expect(images, 'every image block this view owns renders a thumbnail').toHaveLength(3)
       expect(
         new Set(images.map(image => image.getAttribute('src'))).size,
         'the repeated attachment shares one object URL',
@@ -368,7 +376,7 @@ describe('image and file content blocks in the transcript (D13)', () => {
     const rendered = await mountWith(remoteStub(answerOk), uiConversation)
     try {
       expect(rendered.container.textContent ?? '').toContain('compare these')
-      expect(thumbnails(rendered.container), 'the thumbnails still render').toHaveLength(4)
+      expect(thumbnails(rendered.container), 'the thumbnails still render').toHaveLength(3)
       expect(uiConversation.imageUrl, 'uiConversation.imageUrl is not the source of image bytes').not.toHaveBeenCalled()
     } finally {
       rendered.unmount()
@@ -449,7 +457,7 @@ describe('image and file content blocks in the transcript (D13)', () => {
       expect(text, 'the rest of the transcript still renders').toContain('compare these')
       expect(text, 'no placeholder copy leaks into the row').not.toContain('undefined')
       expect(text).not.toContain('null')
-      expect(thumbnails(rendered.container), 'the well-formed images still render').toHaveLength(4)
+      expect(thumbnails(rendered.container), 'the well-formed images still render').toHaveLength(3)
       expect(
         calls.map(call => call.attachmentId).sort(),
         'a malformed block asks for nothing and breaks no other read',

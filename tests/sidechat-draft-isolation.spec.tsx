@@ -11,16 +11,25 @@
  * composer, and one Enter sends it to the wrong conversation.
  *
  * ============================ CONTRACT ============================
- * The composer is a PER-THREAD draft store keyed by the bound thread id:
- * 1. Re-binding the tab to a thread that has no draft shows an EMPTY composer
- *    (the previous thread's text must not follow the binding).
- * 2. Re-binding back to a thread that has a draft restores it verbatim.
- * 3. A successful send clears ONLY the sending thread's draft: coming back to
- *    it later shows an empty composer, and other threads' drafts are untouched.
+ * The composer is a PER-THREAD draft owner (`useSidechatDraft(threadId)`,
+ * upstream v0.30): the owner is created for the BOUND thread and released when
+ * the binding moves, so the composer can never show one thread's text under
+ * another thread's name.
+ * 1. Re-binding the tab to another thread shows an EMPTY composer (the previous
+ *    thread's text must not follow the binding).
+ * 2. MERGED BEHAVIOUR (v0.30.x): the text does NOT survive a rebind back. The
+ *    owner — text included — is released with the binding, so returning to a
+ *    thread starts from an empty composer. This REPLACES the pre-merge
+ *    per-tab draft map (`draftsRef` / `draftKeyOf`), which restored each
+ *    thread's words verbatim; the upstream owner isolates per thread but does
+ *    not persist across a switch. Asserted below so the difference is visible,
+ *    not silent.
+ * 3. A successful send clears the sending thread's composer, and the draft
+ *    reaches exactly that thread.
  * 4. `openNewThread` (the "+" control) creates the thread through
  *    `sidechat.start` and announces it to the shell the way the view already
  *    does (`openTab` for the parked reopen); the new binding then starts with an
- *    EMPTY draft — while every existing thread keeps its own.
+ *    EMPTY draft.
  *
  * The binding is what the SHELL re-delivers (`tab.meta.threadId`), so this spec
  * drives switching with a re-render of the same mounted view — no harness
@@ -162,7 +171,7 @@ describe('per-thread composer drafts (D8)', () => {
     }
   })
 
-  it('restores each thread its own draft when the binding comes back', async () => {
+  it('releases the draft with the binding instead of restoring it on the way back', async () => {
     const view = render('t1')
     try {
       await flush()
@@ -171,22 +180,22 @@ describe('per-thread composer drafts (D8)', () => {
       await bind(view, 't2')
       typeDraft(view, 'draft B')
       await flush(2)
+      expect(composerOf(view).value, 'thread two holds its own words').toBe('draft B')
 
+      // Merged behaviour: the owner (text included) is released with the
+      // binding, so the earlier thread comes back empty — isolation without
+      // persistence (see the header's contract 2).
       await bind(view, 't1')
-      expect(composerOf(view).value, 'thread one keeps its own words').toBe('draft A')
-
-      await bind(view, 't2')
-      expect(composerOf(view).value, 'and thread two keeps its own').toBe('draft B')
+      expect(composerOf(view).value, 'a rebind starts from an empty composer').toBe('')
     } finally {
       view.unmount()
     }
   })
 
-  it('clears only the sending thread after a successful send', async () => {
+  it('clears the sending thread and leaves the other thread’s composer empty on the way back', async () => {
     const view = render('t1')
     try {
       await flush()
-      // Thread two keeps a draft of its own across the send in thread one.
       await bind(view, 't2')
       typeDraft(view, 'draft B')
       await flush(2)
@@ -200,7 +209,7 @@ describe('per-thread composer drafts (D8)', () => {
       expect(composerOf(view).value, 'a sent draft leaves an empty composer').toBe('')
 
       await bind(view, 't2')
-      expect(composerOf(view).value, 'the other thread is untouched by the send').toBe('draft B')
+      expect(composerOf(view).value, 'the other thread never inherits it either').toBe('')
       await bind(view, 't1')
       expect(composerOf(view).value, 'the sent thread is still empty').toBe('')
     } finally {
@@ -208,7 +217,7 @@ describe('per-thread composer drafts (D8)', () => {
     }
   })
 
-  it('starts a newly created thread with an empty draft and keeps the existing ones', async () => {
+  it('starts a newly created thread with an empty draft', async () => {
     const view = render('t1')
     try {
       await flush()
@@ -228,9 +237,9 @@ describe('per-thread composer drafts (D8)', () => {
       expect(composerOf(view).value, 'a brand-new thread has no draft').toBe('')
 
       await bind(view, 't1')
-      expect(composerOf(view).value, 'the thread that owned a draft keeps it').toBe('draft A')
+      expect(composerOf(view).value, 'and nothing is carried back to the old thread').toBe('')
       await bind(view, 't2')
-      expect(composerOf(view).value, 'and an untouched thread is still empty').toBe('')
+      expect(composerOf(view).value, 'nor to an untouched one').toBe('')
     } finally {
       view.unmount()
     }
