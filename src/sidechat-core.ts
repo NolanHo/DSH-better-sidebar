@@ -1559,10 +1559,14 @@ export function sidechatForkPoint(events: readonly SidechatLogEvent[]): Sidechat
   if (cutIndex === 0) return undefined
   const prefix = events.slice(0, cutIndex)
   const fork: SidechatForkPoint = { cutSeq: events[cutIndex - 1]?.seq ?? 0 }
-  // The part describes the moment the reader branched off, so it is the LAST
-  // message of its kind before the cut — and only that one. A message with no
-  // text (an image-only prompt, an answer that only reasoned) leaves the part
-  // out; falling back to an earlier message would misdate the fork.
+  // The part describes the moment the reader branched off, so it is the last
+  // message of its kind that SAYS something before the cut — and only that one.
+  // A QUESTION with no text (an image-only prompt) leaves the part out: falling
+  // back to an earlier question would misdate the fork. An ANSWER is different:
+  // the log records one `assistant/message` per STEP, so the message right
+  // before the cut is routinely textless (a tool call, or reasoning only) — that
+  // step is SKIPPED and the scan keeps walking back, because stopping there
+  // would report "no answer" for a parent whose last exchange plainly had one.
   //
   // Two things that LOOK like a user message are not one, and both are skipped
   // by CONTINUING the scan (a runtime injection routinely lands right after the
@@ -1585,8 +1589,10 @@ export function sidechatForkPoint(events: readonly SidechatLogEvent[]): Sidechat
     if (event === undefined || event.type !== 'assistant/message') continue
     const message = (event.data as { message?: { content?: unknown; id?: unknown } }).message
     const text = textBlocksOf(message?.content)
-    if (text !== '') fork.assistant = { seq: event.seq, text, ...withMessageId(messageIdOf(message)) }
-    break
+    if (text !== '') {
+      fork.assistant = { seq: event.seq, text, ...withMessageId(messageIdOf(message)) }
+      break
+    }
   }
   return fork
 }

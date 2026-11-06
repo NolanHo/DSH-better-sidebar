@@ -24,8 +24,13 @@
  *    `user/message` that is NOT a surface REPLACEMENT (`surfaceOp` other than
  *    `'append'`): a compaction checkpoint is logged as a `user/message` and must
  *    never be presented as the question the reader typed. `assistant` is the
- *    last `assistant/message` text before the cut (its `text` blocks only —
- *    reasoning never leaks into the banner).
+ *    NEAREST PRECEDING `assistant/message` that actually carries a text block:
+ *    a step that only called tools or only reasoned is SKIPPED — not treated as
+ *    "there is no answer" — and the scan keeps walking back to the last one that
+ *    said something. (The log records one assistant message per step, so the
+ *    message right before the cut is routinely textless; stopping there is why
+ *    a fork whose last parent message was an unanswered question showed no
+ *    answer at all.) Text blocks only — reasoning never leaks into the banner.
  * 3. CARRIED VERBATIM — no length cap and no truncation. Both parts are the
  *    parent's own words and the reader asked for the words themselves: `user.text`
  *    and `assistant.text` arrive exactly as the log records them, however long,
@@ -128,6 +133,33 @@ function assistantEvent(seq: number, text: string, reasoning = ''): unknown {
     time: seq * 1_000,
     surfaceOp: 'append',
     data: { turn: 1, step: 1, message: { content } },
+  }
+}
+
+/** One assistant STEP message that carries no text block at all: a tool call
+ *  (the shape every step that ends in a tool logs). */
+function toolOnlyAssistantEvent(seq: number): unknown {
+  return {
+    type: 'assistant/message',
+    seq,
+    time: seq * 1_000,
+    surfaceOp: 'append',
+    data: {
+      turn: 1,
+      step: 1,
+      message: { content: [{ type: 'tool-call', id: 'call-x', name: 'bash', arguments: '{}' }] },
+    },
+  }
+}
+
+/** One assistant STEP message that only reasoned (no text block). */
+function reasoningOnlyAssistantEvent(seq: number): unknown {
+  return {
+    type: 'assistant/message',
+    seq,
+    time: seq * 1_000,
+    surfaceOp: 'append',
+    data: { turn: 1, step: 1, message: { content: [{ type: 'reasoning', text: 'PRIVATE-REASONING' }] } },
   }
 }
 
@@ -286,6 +318,73 @@ describe('sidechat.events fork point (R2)', () => {
         `(${String(longQuestion.length)} in, ${String((result.fork?.user?.text ?? '').length)} out)`,
     ).toBe(longQuestion)
     expect(result.fork?.user?.text ?? '', 'and carries no truncation mark').not.toMatch(/…$|\.\.\.$/)
+  })
+
+  it('keeps the answer when the parent asked again and the last step has no text', async () => {
+    const result = await eventsRoute([
+      userEvent(1, 'PARENT-QUESTION-ONE'),
+      assistantEvent(2, 'PARENT-ANSWER-ONE'),
+      userEvent(3, 'PARENT-QUESTION-TWO'),
+      toolOnlyAssistantEvent(4),
+      seedMarker(5),
+      ...ownLog(),
+    ])
+    expect(result.fork?.user, 'the unanswered question is the fork point').toMatchObject({
+      seq: 3,
+      text: 'PARENT-QUESTION-TWO',
+    })
+    expect(
+      result.fork?.assistant,
+      'the last answer that HAS text is carried, not dropped for a textless step',
+    ).toMatchObject({ seq: 2, text: 'PARENT-ANSWER-ONE' })
+  })
+
+  it('skips a reasoning-only step for the answer tail', async () => {
+    const result = await eventsRoute([
+      userEvent(1, 'PARENT-QUESTION'),
+      assistantEvent(2, 'PARENT-ANSWER'),
+      reasoningOnlyAssistantEvent(3),
+      seedMarker(4),
+      ...ownLog(),
+    ])
+    expect(result.fork?.assistant, 'the reasoning-only step is skipped').toMatchObject({
+      seq: 2,
+      text: 'PARENT-ANSWER',
+    })
+    expect(result.fork?.assistant?.text ?? '', 'reasoning never leaks').not.toContain('PRIVATE-REASONING')
+  })
+
+  it('carries both parts when an earlier answer precedes the open question', async () => {
+    const result = await eventsRoute([
+      userEvent(1, 'PARENT-QUESTION-ONE'),
+      assistantEvent(2, 'PARENT-ANSWER-ONE'),
+      userEvent(3, 'PARENT-QUESTION-TWO'),
+      seedMarker(4),
+      ...ownLog(),
+    ])
+    expect(result.fork?.user, 'the question that was open at the fork').toMatchObject({
+      seq: 3,
+      text: 'PARENT-QUESTION-TWO',
+    })
+    expect(result.fork?.assistant, 'and the answer before it').toMatchObject({
+      seq: 2,
+      text: 'PARENT-ANSWER-ONE',
+    })
+  })
+
+  it('omits the answer when no assistant message before the cut carries text', async () => {
+    const result = await eventsRoute([
+      userEvent(1, 'PARENT-QUESTION'),
+      reasoningOnlyAssistantEvent(2),
+      toolOnlyAssistantEvent(3),
+      seedMarker(4),
+      ...ownLog(),
+    ])
+    expect(result.fork?.user, 'the question is still carried').toMatchObject({
+      seq: 1,
+      text: 'PARENT-QUESTION',
+    })
+    expect(result.fork?.assistant, 'there is nothing to quote as the answer').toBeUndefined()
   })
 
   it('never leaks reasoning into the answer tail', async () => {
